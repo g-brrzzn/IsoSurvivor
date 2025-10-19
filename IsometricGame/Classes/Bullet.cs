@@ -1,0 +1,74 @@
+﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using System;
+using System.Collections.Generic;
+
+namespace IsometricGame.Classes
+{
+    public class BulletOptions
+    {
+        public float? Angle { get; set; }
+        public int? Count { get; set; }
+        public float? SpreadArc { get; set; }
+        public float? SpeedScale { get; set; } = 10.0f;    }
+
+    public class Bullet : Sprite
+    {
+        public static Texture2D PlayerImage { get; set; }
+        public static Texture2D EnemyImage { get; set; }
+
+        public bool IsFromPlayer { get; private set; }
+
+        public Bullet(Vector2 worldPos, Vector2 worldDirection, bool isFromPlayer, BulletOptions options = null)
+            : base(null, worldPos)
+        {
+            IsFromPlayer = isFromPlayer;
+            options ??= new BulletOptions();            float speedScale = options.SpeedScale.Value;
+
+            Texture = isFromPlayer ? PlayerImage : EnemyImage;
+
+            if (Texture == null)
+                Texture = Particles.Explosion.PixelTexture;
+
+            if (Texture != null)
+                Origin = new Vector2(Texture.Width / 2f, Texture.Height / 2f);
+
+
+            if (worldDirection.LengthSquared() > 0)
+            {
+                WorldVelocity = Vector2.Normalize(worldDirection) * speedScale;
+            }
+            else
+            {
+                WorldVelocity = new Vector2(0, 1) * speedScale;            }
+        }
+
+        public static void LoadAssets(AssetManager assets)
+        {
+            PlayerImage = assets.Images["bullet_player"];
+            EnemyImage = assets.Images["bullet_enemy"];
+        }
+
+        public static List<Bullet> CreateBullets(string pattern, Vector2 worldPos, Vector2 worldDirection, bool isFromPlayer, BulletOptions options = null)
+        {
+            var bullets = new List<Bullet>();
+            options ??= new BulletOptions();
+
+            if (pattern == "single")
+            {
+                bullets.Add(new Bullet(worldPos, worldDirection, isFromPlayer, options));
+            }
+
+            return bullets;
+        }
+        public override void Update(GameTime gameTime, float dt)
+        {
+            base.Update(gameTime, dt);
+
+            float limit = Math.Max(Constants.WorldSize.X, Constants.WorldSize.Y) * 1.5f;            if (Math.Abs(WorldPosition.X) > limit || Math.Abs(WorldPosition.Y) > limit)
+            {
+                Kill();
+            }
+        }
+    }
+}
