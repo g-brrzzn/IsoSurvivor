@@ -26,16 +26,17 @@ namespace IsometricGame.Classes
         public EnemyBase(Vector2 worldPos, List<string> spriteKeys) : base(null, worldPos)
         {
             _sprites = LoadSprites(spriteKeys);
+            _explosion = new Explosion();
 
             if (_sprites.Count > 0 && _sprites.ContainsKey(_currentDirection))
             {
                 UpdateTexture(_sprites[_currentDirection]);
+                if (Texture != null)
+                    Origin = new Vector2(Texture.Width / 2f, Texture.Height);
             }
 
-            _explosion = new Explosion();
             if (Texture != null)
                 _explosion.Create(this.ScreenPosition.X, this.ScreenPosition.Y - Texture.Height / 2f, speed: -5);
-
             Life = 3;
             Weight = 1;
         }
@@ -128,7 +129,12 @@ namespace IsometricGame.Classes
                 _currentDirection = direction.Y > 0 ? "south" : "west";            }
 
             if (_sprites.ContainsKey(_currentDirection))
+            {
                 UpdateTexture(_sprites[_currentDirection]);
+                if (Texture != null)
+                    Origin = new Vector2(Texture.Width / 2f, Texture.Height);
+            }
+                
         }
         public override void Update(GameTime gameTime, float dt)
         {
@@ -147,12 +153,20 @@ namespace IsometricGame.Classes
             Color tint = _isHit ? Color.Red : Color.White;
             if (Texture != null && !IsRemoved)
             {
+                // --- INÍCIO DA ADIÇÃO ---
+                Vector2 drawPosition = new Vector2(
+                    MathF.Round(ScreenPosition.X),
+                    MathF.Round(ScreenPosition.Y)
+                );
+                // --- FIM DA ADIÇÃO ---
+
                 float depth = IsoMath.GetDepth(WorldPosition);
 
                 spriteBatch.Draw(Texture,
-                                 ScreenPosition,
+                                 drawPosition, // Usa a posição arredondada
                                  null,
-                                 tint,                                 0f,
+                                 tint,
+                                 0f,
                                  Origin,
                                  1.0f,
                                  SpriteEffects.None,

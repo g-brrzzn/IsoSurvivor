@@ -25,7 +25,13 @@ namespace IsometricGame
             float totalWorldUnits = Constants.WorldSize.X + Constants.WorldSize.Y;
             float currentWorldUnits = worldPosition.X + worldPosition.Y;
 
-            return Math.Clamp(currentWorldUnits / totalWorldUnits, 0f, 1f);
+            // Normaliza a profundidade (0.0 para o topo, 1.0 para a base)
+            float normalizedDepth = currentWorldUnits / totalWorldUnits;
+
+            // Inverte o valor!
+            // Agora o topo (0,0) será 1.0 (desenhado atrás)
+            // E a base (100,100) será 0.0 (desenhada na frente)
+            return Math.Clamp(1.0f - normalizedDepth, 0.0f, 1.0f);
         }
     }
 }

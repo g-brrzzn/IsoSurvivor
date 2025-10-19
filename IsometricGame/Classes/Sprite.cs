@@ -16,17 +16,23 @@ namespace IsometricGame.Classes
 
         public Sprite(Texture2D texture, Vector2 worldPosition)
         {
-            Texture = texture;
             WorldPosition = worldPosition;
             WorldVelocity = Vector2.Zero;
-            UpdateScreenPosition();        }
+
+            // Esta é a mudança principal:
+            // Precisamos chamar UpdateTexture para definir a Texture E a Origin.
+            // A Origin correta (base da imagem) é essencial para o sorting isométrico.
+            UpdateTexture(texture);
+
+            UpdateScreenPosition();
+        }
 
         protected void UpdateTexture(Texture2D newTexture)
         {
             if (newTexture != null)
             {
                 Texture = newTexture;
-                Origin = new Vector2(Texture.Width / 2f, Texture.Height);
+                Origin = new Vector2(Texture.Width / 2f, Texture.Height / 2f);
             }
         }
 
@@ -44,15 +50,28 @@ namespace IsometricGame.Classes
         {
             if (Texture != null && !IsRemoved)
             {
+                // --- INÍCIO DA MODIFICAÇÃO ---
+                // Arredonda as coordenadas X e Y para o inteiro mais próximo
+                // Isso "trava" o sprite na grade de pixels, evitando micro-desalinhamentos.
+                Vector2 drawPosition = new Vector2(
+                    MathF.Round(ScreenPosition.X),
+                    MathF.Round(ScreenPosition.Y)
+                );
+                // --- FIM DA MODIFICAÇÃO ---
+
                 float depth = IsoMath.GetDepth(WorldPosition);
+
                 spriteBatch.Draw(Texture,
-                                 ScreenPosition,
+                                 // Usa a posição arredondada
+                                 drawPosition,
                                  null,
                                  Color.White,
                                  0f,
                                  Origin,
-                                 1.0f,                                 SpriteEffects.None,
-                                 depth);            }
+                                 1.0f,
+                                 SpriteEffects.None,
+                                 depth);
+            }
         }
 
         public void Kill() => IsRemoved = true;

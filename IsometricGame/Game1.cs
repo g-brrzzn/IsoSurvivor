@@ -95,6 +95,8 @@ namespace IsometricGame
             _inputManager = new InputManager();
             Camera = new Camera(Constants.InternalResolution.X, Constants.InternalResolution.Y);
             MenuBackgroundFall = new Fall(150);
+            Camera.SetZoom(2.0f);
+
             _states.Add("Menu", new MenuState());
             _states.Add("Game", new GameplayState());
             _states.Add("Pause", new PauseState());
@@ -170,6 +172,8 @@ namespace IsometricGame
         {
             GraphicsDevice.SetRenderTarget(_renderTarget);
             GraphicsDevice.Clear(Constants.BackgroundColor);
+
+            // --- BATCH 1: Fundos da UI (Sem Câmera) ---
             _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp);
 
             if (_currentState is MenuState || _currentState is OptionsState || _currentState is GameOverState)
@@ -179,19 +183,45 @@ namespace IsometricGame
             }
 
             _spriteBatch.End();
+
+
+            // --- BATCH 2: O Mundo (COM Câmera e Zoom) ---
             _spriteBatch.Begin(SpriteSortMode.BackToFront,
                                BlendState.AlphaBlend,
                                SamplerState.PointClamp,
                                null, null, null,
-                               Camera.GetViewMatrix());
+                               Camera.GetViewMatrix()); // <-- ZOOM APLICADO AQUI
 
+            if (_currentState is GameplayState)
+            {
+                // Chama o novo método que desenha apenas o mundo
+                ((GameplayState)_currentState).DrawWorld(_spriteBatch);
+            }
+
+            _spriteBatch.End(); // Fim do Batch do Mundo
+
+
+            // --- BATCH 3: A UI (Sem Câmera) ---
+            _spriteBatch.Begin(SpriteSortMode.Deferred,
+                               BlendState.AlphaBlend,
+                               SamplerState.PointClamp);
+            // <-- Sem Matriz, usa Coordenadas de Tela
+
+            // Chama o método Draw padrão, que agora só desenha a UI
+            // (Menus, HUD do GameplayState, etc.)
             _currentState.Draw(_spriteBatch, GraphicsDevice);
 
             if (Constants.ShowFPS && !string.IsNullOrEmpty(_fpsDisplay))
-                DrawUtils.DrawText(_spriteBatch, _fpsDisplay, GameEngine.Assets.Fonts["captain_32"],
-                    Camera.ScreenToWorld(new Vector2(10, 10)), Color.White, 1.0f);
+            {
+                // Usa a nova função DrawTextScreen
+                DrawUtils.DrawTextScreen(_spriteBatch, _fpsDisplay, GameEngine.Assets.Fonts["captain_32"],
+                    new Vector2(10, 10), Color.White, 1.0f);
+            }
 
-            _spriteBatch.End();
+            _spriteBatch.End(); // Fim do Batch da UI
+
+
+            // --- BATCH 4: Renderização Final para a Janela ---
             GraphicsDevice.SetRenderTarget(null);
             GraphicsDevice.Clear(Color.Black);
 

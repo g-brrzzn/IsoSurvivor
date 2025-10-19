@@ -13,6 +13,13 @@ namespace IsometricGame.States
             spriteBatch.DrawString(font, text, position, color, 0, origin, 1.0f, SpriteEffects.None, depth);
         }
 
+        // Nova função para desenhar texto em coordenadas de TELA
+        public static void DrawTextScreen(SpriteBatch spriteBatch, string text, SpriteFont font, Vector2 position, Color color, float depth = 1.0f)
+        {
+            Vector2 origin = font.MeasureString(text) / 2f;
+            spriteBatch.DrawString(font, text, position, color, 0, origin, 1.0f, SpriteEffects.None, depth);
+        }
+
         public static void DrawVerticalGradient(SpriteBatch spriteBatch, GraphicsDevice graphicsDevice, Color color1, Color color2)
         {
             Texture2D pixel = GameEngine.Assets.Images["pixel"];
@@ -33,36 +40,43 @@ namespace IsometricGame.States
             Texture2D pixel = GameEngine.Assets.Images["pixel"];
             SpriteFont fontTitle = GameEngine.Assets.Fonts["captain_80"];
             SpriteFont fontOption = GameEngine.Assets.Fonts["captain_42"];
-            Vector2 center = Game1.Camera.ScreenToWorld(new Vector2(Constants.InternalResolution.X / 2f, Constants.InternalResolution.Y / 2f));
+
+            // Não converte mais para "mundo", usa o centro da tela interna
+            Vector2 center = new Vector2(Constants.InternalResolution.X / 2f, Constants.InternalResolution.Y / 2f);
 
             if (!string.IsNullOrEmpty(title))
             {
-                Vector2 titlePos = Game1.Camera.ScreenToWorld(new Vector2(Constants.InternalResolution.X / 2f, Constants.InternalResolution.Y / 2f - 150));
-                DrawText(spriteBatch, title, fontTitle, titlePos, Constants.TitleYellow1, 1.0f);
+                // Usa coordenadas de tela
+                Vector2 titlePos = new Vector2(Constants.InternalResolution.X / 2f, Constants.InternalResolution.Y / 2f - 150);
+                // Usa a nova função DrawTextScreen
+                DrawTextScreen(spriteBatch, title, fontTitle, titlePos, Constants.TitleYellow1, 1.0f);
             }
 
             float yGap = 50f;
-            float startY = center.Y - (options.Count / 2f * yGap) + 50f;
-            Vector2 startPosScreen = new Vector2(Constants.InternalResolution.X / 2f, Constants.InternalResolution.Y / 2f - (options.Count / 2f * yGap) + 50f);
+            // Usa o centro da tela
+            Vector2 startPosScreen = new Vector2(center.X, center.Y - (options.Count / 2f * yGap) + 50f);
 
             for (int i = 0; i < options.Count; i++)
             {
                 Color color = (i == selected) ? Constants.GameColor : Color.White;
-
                 Vector2 posScreen = new Vector2(startPosScreen.X, startPosScreen.Y + i * yGap);
-                Vector2 posWorld = Game1.Camera.ScreenToWorld(posScreen);
-                DrawText(spriteBatch, options[i], fontOption, posWorld, color, 1.0f);
+
+                // Usa a nova função DrawTextScreen
+                DrawTextScreen(spriteBatch, options[i], fontOption, posScreen, color, 1.0f);
 
                 if (i == selected)
                 {
                     float textWidth = fontOption.MeasureString(options[i]).X / 2f;
-                    Vector2 leftMarkerPos = Game1.Camera.ScreenToWorld(new Vector2(posScreen.X - textWidth - 20, posScreen.Y));
-                    Vector2 rightMarkerPos = Game1.Camera.ScreenToWorld(new Vector2(posScreen.X + textWidth + 20, posScreen.Y));
+                    // Usa coordenadas de tela
+                    Vector2 leftMarkerPos = new Vector2(posScreen.X - textWidth - 20, posScreen.Y);
+                    Vector2 rightMarkerPos = new Vector2(posScreen.X + textWidth + 20, posScreen.Y);
 
-                    DrawText(spriteBatch, "|", fontOption, leftMarkerPos, color, 1.0f);
-                    DrawText(spriteBatch, "|", fontOption, rightMarkerPos, color, 1.0f);
+                    // Usa a nova função DrawTextScreen
+                    DrawTextScreen(spriteBatch, "|", fontOption, leftMarkerPos, color, 1.0f);
+                    DrawTextScreen(spriteBatch, "|", fontOption, rightMarkerPos, color, 1.0f);
                 }
             }
+            // --- FIM DA MODIFICAÇÃO ---
         }
     }
 }

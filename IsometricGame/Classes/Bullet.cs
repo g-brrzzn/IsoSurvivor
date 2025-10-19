@@ -30,9 +30,6 @@ namespace IsometricGame.Classes
             if (Texture == null)
                 Texture = Particles.Explosion.PixelTexture;
 
-            if (Texture != null)
-                Origin = new Vector2(Texture.Width / 2f, Texture.Height / 2f);
-
 
             if (worldDirection.LengthSquared() > 0)
             {
@@ -68,6 +65,33 @@ namespace IsometricGame.Classes
             float limit = Math.Max(Constants.WorldSize.X, Constants.WorldSize.Y) * 1.5f;            if (Math.Abs(WorldPosition.X) > limit || Math.Abs(WorldPosition.Y) > limit)
             {
                 Kill();
+            }
+        }
+        public override void Draw(SpriteBatch spriteBatch)
+        {
+            if (Texture != null && !IsRemoved)
+            {
+                // Calcula a posição "flutuante"
+                Vector2 floatingScreenPos = ScreenPosition - new Vector2(0, 12);
+
+                // --- INÍCIO DA ADIÇÃO ---
+                Vector2 drawPosition = new Vector2(
+                    MathF.Round(floatingScreenPos.X),
+                    MathF.Round(floatingScreenPos.Y)
+                );
+                // --- FIM DA ADIÇÃO ---
+
+                float depth = IsoMath.GetDepth(WorldPosition);
+
+                spriteBatch.Draw(Texture,
+                                 drawPosition, // Usa a posição arredondada
+                                 null,
+                                 Color.White,
+                                 0f,
+                                 Origin,
+                                 1.0f,
+                                 SpriteEffects.None,
+                                 depth);
             }
         }
     }

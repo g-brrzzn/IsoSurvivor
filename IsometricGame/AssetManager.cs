@@ -53,15 +53,45 @@ namespace IsometricGame
 
         public void LoadContent(ContentManager content, GraphicsDevice graphicsDevice)
         {
-            var playerSprite = CreateDiamondTexture(graphicsDevice, 32, 64, Constants.PlayerColorGreen);
+            var playerSprite = CreateDiamondTexture(graphicsDevice, 16, 32, Constants.PlayerColorGreen);
             Images["player_idle_south"] = playerSprite;
             Images["player_idle_west"] = playerSprite;
+            Images["player_idle_north"] = playerSprite; // ADICIONADO
+            Images["player_idle_east"] = playerSprite;  // ADICIONADO
 
-            Images["icon"] = playerSprite;            Images["bullet_player"] = CreateRectangleTexture(graphicsDevice, 8, 8, Color.Yellow);
+            Images["icon"] = playerSprite;            
+            Images["bullet_player"] = CreateRectangleTexture(graphicsDevice, 8, 8, Color.Yellow);
             Images["bullet_enemy"] = CreateRectangleTexture(graphicsDevice, 8, 8, Color.Magenta);
-            var enemySprite = CreateDiamondTexture(graphicsDevice, 32, 64, Color.DarkRed);
+            var enemySprite = CreateDiamondTexture(graphicsDevice, 16, 32, Color.DarkRed);
             Images["enemy1_idle_south"] = enemySprite;
             Images["enemy1_idle_west"] = enemySprite;
+            Images["enemy1_idle_north"] = enemySprite; // ADICIONADO
+            Images["enemy1_idle_east"] = enemySprite;  // ADICIONADO
+
+            // Cria uma textura de "chão" baseada no IsoTileSize
+            var floorTile = CreateDiamondTexture(
+                graphicsDevice,
+                Constants.IsoTileSize.X, // 64
+                Constants.IsoTileSize.Y, // 32
+                Color.DarkGreen);
+            Images["tile_floor"] = content.Load<Texture2D>("sprites/tiles/grass_tile1");
+
+            // 2. Removemos o código que gerava o chão placeholder
+            /* var floorTile = CreateDiamondTexture(
+                graphicsDevice, 
+                Constants.IsoTileSize.X, // 64
+                Constants.IsoTileSize.Y, // 32
+                Color.DarkGreen);
+            Images["tile_floor"] = floorTile;
+            */
+
+            // 3. ATUALIZAÇÃO AUTOMÁTICA DA PAREDE:
+            // O código da parede (wallTile) usa Constants.IsoTileSize.X.
+            // Como mudamos o X para 32, a parede agora será criada
+            // como um losango 32x32, combinando com seu novo tile.
+            // Nenhuma mudança é necessária aqui.
+            Images["tile_wall"] = content.Load<Texture2D>("sprites/tiles/grass_tile3");
+
             Sounds["shoot"] = content.Load<SoundEffect>("sound/shoot");
             Sounds["hit"] = content.Load<SoundEffect>("sound/hit");
             Sounds["menu_select"] = content.Load<SoundEffect>("sound/impactMetal_002");

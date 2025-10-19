@@ -15,7 +15,7 @@ namespace IsometricGame.Classes.Particles
                            Color? color = null,
                            int count = 80,
                            float eRange = 50,
-                           float speed = 400.0f,                           float rangeVariation = 0.4f)
+                           float speed = 400.0f, float rangeVariation = 0.4f)
         {
             Vector2 origin = new Vector2(x, y);
             Color partColor = color ?? Constants.TitleYellow1;
@@ -23,7 +23,7 @@ namespace IsometricGame.Classes.Particles
             for (int i = 0; i < count; i++)
             {
                 float angle = (float)(GameEngine.Random.NextDouble() * 2 * Math.PI);
-                float magnitude = (float)(GameEngine.Random.NextDouble() * 0.8 + 0.2) * speed;                Vector2 vel = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle)) * magnitude;
+                float magnitude = (float)(GameEngine.Random.NextDouble() * 0.8 + 0.2) * speed; Vector2 vel = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle)) * magnitude;
                 float randomFactor = 1.0f + (float)(GameEngine.Random.NextDouble() * 2 - 1) * rangeVariation;
                 float particleRange = eRange * randomFactor;
 
@@ -36,7 +36,7 @@ namespace IsometricGame.Classes.Particles
             for (int i = _particles.Count - 1; i >= 0; i--)
             {
                 var p = _particles[i];
-                p.Position += p.Velocity * dt;                _particles[i] = p;
+                p.Position += p.Velocity * dt; _particles[i] = p;
 
                 if (Vector2.DistanceSquared(p.Position, p.Origin) > (p.MaxRange * p.MaxRange))
                 {
@@ -51,8 +51,11 @@ namespace IsometricGame.Classes.Particles
 
             foreach (var p in _particles)
             {
+                // --- INÍCIO DA MODIFICAÇÃO ---
+                // Muda a profundidade (último parâmetro) de 1.0f para 0.0f
                 spriteBatch.Draw(PixelTexture, p.Position, null, p.Color, 0f,
-                                 new Vector2(0.5f, 0.5f), 6f, SpriteEffects.None, 1.0f);
+                                 new Vector2(0.5f, 0.5f), 6f, SpriteEffects.None, 0.0f);
+                // --- FIM DA MODIFICAÇÃO ---
             }
         }
     }

@@ -11,6 +11,7 @@ namespace IsometricGame.States
     {
         private Explosion _hitExplosion;
         private Fall _backgroundFall;
+        private MapGenerator _mapGenerator;
 
         public override void Start()
         {
@@ -20,10 +21,16 @@ namespace IsometricGame.States
             _hitExplosion = new Explosion();
             _backgroundFall = new Fall(300);
 
-            Vector2 playerPos = Vector2.Zero;
-            GameEngine.Player = new Player(playerPos);
-            GameEngine.AllSprites.Add(GameEngine.Player);
+            // 1. Gera o mapa PRIMEIRO
+            _mapGenerator = new MapGenerator();
+            _mapGenerator.GenerateMap(); // Isso irá popular GameEngine.AllSprites com tiles
 
+            // 2. Adiciona o Player
+            Vector2 playerPos = new Vector2(10, 10); // Posição inicial no meio do "castelo"
+            GameEngine.Player = new Player(playerPos);
+            GameEngine.AllSprites.Add(GameEngine.Player); // Adiciona o player DEPOIS dos tiles
+
+            // 3. Adiciona os Inimigos
             SpawnEnemies();
         }
 
@@ -163,26 +170,36 @@ namespace IsometricGame.States
                 GameEngine.Player = null;
             }
         }
-        public override void Draw(SpriteBatch spriteBatch, GraphicsDevice graphicsDevice)
+
+        public void DrawWorld(SpriteBatch spriteBatch)
         {
             foreach (var sprite in GameEngine.AllSprites)
             {
-                if (!sprite.IsRemoved)                    sprite.Draw(spriteBatch);
+                if (!sprite.IsRemoved)
+                    sprite.Draw(spriteBatch);
             }
 
             if (GameEngine.Player != null)
                 GameEngine.Player.ExplosionEffect.Draw(spriteBatch);
 
             _hitExplosion.Draw(spriteBatch);
-            var font = GameEngine.Assets.Fonts["captain_32"];
-            Vector2 levelPos = Game1.Camera.ScreenToWorld(new Vector2(Constants.InternalResolution.X - 100, 30));
-            Vector2 lifePos = Game1.Camera.ScreenToWorld(new Vector2(Constants.InternalResolution.X - 100, 60));
+        }
+        public override void Draw(SpriteBatch spriteBatch, GraphicsDevice graphicsDevice)
+        {
+            // O código de desenhar sprites foi movido para DrawWorld()
 
-            DrawUtils.DrawText(spriteBatch, $"Level {GameEngine.Level}", font, levelPos, Color.White, 1.0f);
+            var font = GameEngine.Assets.Fonts["captain_32"];
+
+            // Usa coordenadas de tela
+            Vector2 levelPos = new Vector2(Constants.InternalResolution.X - 100, 30);
+            Vector2 lifePos = new Vector2(Constants.InternalResolution.X - 100, 60);
+
+            // Usa a nova função DrawTextScreen
+            DrawUtils.DrawTextScreen(spriteBatch, $"Level {GameEngine.Level}", font, levelPos, Color.White, 1.0f);
             if (GameEngine.Player != null)
-                DrawUtils.DrawText(spriteBatch, $"Life  {GameEngine.Player.Life}", font, lifePos, Color.White, 1.0f);
+                DrawUtils.DrawTextScreen(spriteBatch, $"Life  {GameEngine.Player.Life}", font, lifePos, Color.White, 1.0f);
             else
-                DrawUtils.DrawText(spriteBatch, "Life  0", font, lifePos, Color.Red, 1.0f);
+                DrawUtils.DrawTextScreen(spriteBatch, "Life  0", font, lifePos, Color.Red, 1.0f);
         }
     }
 }

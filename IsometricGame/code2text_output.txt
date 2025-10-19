@@ -116,15 +116,45 @@ namespace IsometricGame
 
         public void LoadContent(ContentManager content, GraphicsDevice graphicsDevice)
         {
-            var playerSprite = CreateDiamondTexture(graphicsDevice, 32, 64, Constants.PlayerColorGreen);
+            var playerSprite = CreateDiamondTexture(graphicsDevice, 16, 32, Constants.PlayerColorGreen);
             Images["player_idle_south"] = playerSprite;
             Images["player_idle_west"] = playerSprite;
+            Images["player_idle_north"] = playerSprite; // ADICIONADO
+            Images["player_idle_east"] = playerSprite;  // ADICIONADO
 
-            Images["icon"] = playerSprite;            Images["bullet_player"] = CreateRectangleTexture(graphicsDevice, 8, 8, Color.Yellow);
+            Images["icon"] = playerSprite;            
+            Images["bullet_player"] = CreateRectangleTexture(graphicsDevice, 8, 8, Color.Yellow);
             Images["bullet_enemy"] = CreateRectangleTexture(graphicsDevice, 8, 8, Color.Magenta);
-            var enemySprite = CreateDiamondTexture(graphicsDevice, 32, 64, Color.DarkRed);
+            var enemySprite = CreateDiamondTexture(graphicsDevice, 16, 32, Color.DarkRed);
             Images["enemy1_idle_south"] = enemySprite;
             Images["enemy1_idle_west"] = enemySprite;
+            Images["enemy1_idle_north"] = enemySprite; // ADICIONADO
+            Images["enemy1_idle_east"] = enemySprite;  // ADICIONADO
+
+            // Cria uma textura de "chão" baseada no IsoTileSize
+            var floorTile = CreateDiamondTexture(
+                graphicsDevice,
+                Constants.IsoTileSize.X, // 64
+                Constants.IsoTileSize.Y, // 32
+                Color.DarkGreen);
+            Images["tile_floor"] = content.Load<Texture2D>("sprites/tiles/grass_tile1");
+
+            // 2. Removemos o código que gerava o chão placeholder
+            /* var floorTile = CreateDiamondTexture(
+                graphicsDevice, 
+                Constants.IsoTileSize.X, // 64
+                Constants.IsoTileSize.Y, // 32
+                Color.DarkGreen);
+            Images["tile_floor"] = floorTile;
+            */
+
+            // 3. ATUALIZAÇÃO AUTOMÁTICA DA PAREDE:
+            // O código da parede (wallTile) usa Constants.IsoTileSize.X.
+            // Como mudamos o X para 32, a parede agora será criada
+            // como um losango 32x32, combinando com seu novo tile.
+            // Nenhuma mudança é necessária aqui.
+            Images["tile_wall"] = content.Load<Texture2D>("sprites/tiles/grass_tile3");
+
             Sounds["shoot"] = content.Load<SoundEffect>("sound/shoot");
             Sounds["hit"] = content.Load<SoundEffect>("sound/hit");
             Sounds["menu_select"] = content.Load<SoundEffect>("sound/impactMetal_002");
@@ -359,13 +389,30 @@ namespace IsometricGame
             _viewportHeight = viewportHeight;
             Zoom = 1.0f;
             Position = Vector2.Zero;
+
+            // --- ADIÇÃO 1 ---
+            // Garante que a matriz seja calculada na inicialização
+            UpdateMatrix();
+        }
+
+        // --- ADIÇÃO 2 ---
+        // Novo método para definir o zoom e atualizar a matriz
+        public void SetZoom(float zoom)
+        {
+            // Math.Max para evitar zoom negativo ou zero
+            Zoom = Math.Max(zoom, 0.1f);
+            UpdateMatrix();
         }
 
         private void UpdateMatrix()
         {
+            // --- MODIFICAÇÃO 3 ---
+            // Adicionamos Matrix.CreateScale(Zoom) à transformação
             Transform = Matrix.CreateTranslation(-Position.X, -Position.Y, 0) *
+                        Matrix.CreateScale(Zoom, Zoom, 1f) * // <-- LINHA ADICIONADA
                         Matrix.CreateTranslation(_viewportWidth / 2, _viewportHeight / 2, 0);
         }
+
         public void Follow(Vector2 targetPosition)
         {
             Position = Vector2.Lerp(Position, targetPosition, 0.1f);
@@ -417,9 +464,6 @@ namespace IsometricGame.Classes
             if (Texture == null)
                 Texture = Particles.Explosion.PixelTexture;
 
-            if (Texture != null)
-                Origin = new Vector2(Texture.Width / 2f, Texture.Height / 2f);
-
 
             if (worldDirection.LengthSquared() > 0)
             {
@@ -455,6 +499,33 @@ namespace IsometricGame.Classes
             float limit = Math.Max(Constants.WorldSize.X, Constants.WorldSize.Y) * 1.5f;            if (Math.Abs(WorldPosition.X) > limit || Math.Abs(WorldPosition.Y) > limit)
             {
                 Kill();
+            }
+        }
+        public override void Draw(SpriteBatch spriteBatch)
+        {
+            if (Texture != null && !IsRemoved)
+            {
+                // Calcula a posição "flutuante"
+                Vector2 floatingScreenPos = ScreenPosition - new Vector2(0, 12);
+
+                // --- INÍCIO DA ADIÇÃO ---
+                Vector2 drawPosition = new Vector2(
+                    MathF.Round(floatingScreenPos.X),
+                    MathF.Round(floatingScreenPos.Y)
+                );
+                // --- FIM DA ADIÇÃO ---
+
+                float depth = IsoMath.GetDepth(WorldPosition);
+
+                spriteBatch.Draw(Texture,
+                                 drawPosition, // Usa a posição arredondada
+                                 null,
+                                 Color.White,
+                                 0f,
+                                 Origin,
+                                 1.0f,
+                                 SpriteEffects.None,
+                                 depth);
             }
         }
     }
@@ -510,16 +581,17 @@ namespace IsometricGame.Classes
         public EnemyBase(Vector2 worldPos, List<string> spriteKeys) : base(null, worldPos)
         {
             _sprites = LoadSprites(spriteKeys);
+            _explosion = new Explosion();
 
             if (_sprites.Count > 0 && _sprites.ContainsKey(_currentDirection))
             {
                 UpdateTexture(_sprites[_currentDirection]);
+                if (Texture != null)
+                    Origin = new Vector2(Texture.Width / 2f, Texture.Height);
             }
 
-            _explosion = new Explosion();
             if (Texture != null)
                 _explosion.Create(this.ScreenPosition.X, this.ScreenPosition.Y - Texture.Height / 2f, speed: -5);
-
             Life = 3;
             Weight = 1;
         }
@@ -612,7 +684,12 @@ namespace IsometricGame.Classes
                 _currentDirection = direction.Y > 0 ? "south" : "west";            }
 
             if (_sprites.ContainsKey(_currentDirection))
+            {
                 UpdateTexture(_sprites[_currentDirection]);
+                if (Texture != null)
+                    Origin = new Vector2(Texture.Width / 2f, Texture.Height);
+            }
+                
         }
         public override void Update(GameTime gameTime, float dt)
         {
@@ -631,12 +708,20 @@ namespace IsometricGame.Classes
             Color tint = _isHit ? Color.Red : Color.White;
             if (Texture != null && !IsRemoved)
             {
+                // --- INÍCIO DA ADIÇÃO ---
+                Vector2 drawPosition = new Vector2(
+                    MathF.Round(ScreenPosition.X),
+                    MathF.Round(ScreenPosition.Y)
+                );
+                // --- FIM DA ADIÇÃO ---
+
                 float depth = IsoMath.GetDepth(WorldPosition);
 
                 spriteBatch.Draw(Texture,
-                                 ScreenPosition,
+                                 drawPosition, // Usa a posição arredondada
                                  null,
-                                 tint,                                 0f,
+                                 tint,
+                                 0f,
                                  Origin,
                                  1.0f,
                                  SpriteEffects.None,
@@ -668,7 +753,7 @@ namespace IsometricGame.Classes.Particles
                            Color? color = null,
                            int count = 80,
                            float eRange = 50,
-                           float speed = 400.0f,                           float rangeVariation = 0.4f)
+                           float speed = 400.0f, float rangeVariation = 0.4f)
         {
             Vector2 origin = new Vector2(x, y);
             Color partColor = color ?? Constants.TitleYellow1;
@@ -676,7 +761,7 @@ namespace IsometricGame.Classes.Particles
             for (int i = 0; i < count; i++)
             {
                 float angle = (float)(GameEngine.Random.NextDouble() * 2 * Math.PI);
-                float magnitude = (float)(GameEngine.Random.NextDouble() * 0.8 + 0.2) * speed;                Vector2 vel = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle)) * magnitude;
+                float magnitude = (float)(GameEngine.Random.NextDouble() * 0.8 + 0.2) * speed; Vector2 vel = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle)) * magnitude;
                 float randomFactor = 1.0f + (float)(GameEngine.Random.NextDouble() * 2 - 1) * rangeVariation;
                 float particleRange = eRange * randomFactor;
 
@@ -689,7 +774,7 @@ namespace IsometricGame.Classes.Particles
             for (int i = _particles.Count - 1; i >= 0; i--)
             {
                 var p = _particles[i];
-                p.Position += p.Velocity * dt;                _particles[i] = p;
+                p.Position += p.Velocity * dt; _particles[i] = p;
 
                 if (Vector2.DistanceSquared(p.Position, p.Origin) > (p.MaxRange * p.MaxRange))
                 {
@@ -704,8 +789,11 @@ namespace IsometricGame.Classes.Particles
 
             foreach (var p in _particles)
             {
+                // --- INÍCIO DA MODIFICAÇÃO ---
+                // Muda a profundidade (último parâmetro) de 1.0f para 0.0f
                 spriteBatch.Draw(PixelTexture, p.Position, null, p.Color, 0f,
-                                 new Vector2(0.5f, 0.5f), 6f, SpriteEffects.None, 1.0f);
+                                 new Vector2(0.5f, 0.5f), 6f, SpriteEffects.None, 0.0f);
+                // --- FIM DA MODIFICAÇÃO ---
             }
         }
     }
@@ -867,10 +955,15 @@ namespace IsometricGame.Classes
             _sprites = new Dictionary<string, Texture2D>
             {
                 { "south", GameEngine.Assets.Images["player_idle_south"] },
-                { "west", GameEngine.Assets.Images["player_idle_west"] }
+                { "west", GameEngine.Assets.Images["player_idle_west"] },
+                { "north", GameEngine.Assets.Images["player_idle_north"] },
+                { "east", GameEngine.Assets.Images["player_idle_east"] }
             };
 
-            if (_sprites.ContainsKey(_currentDirection))                UpdateTexture(_sprites[_currentDirection]);
+            if (_sprites.ContainsKey(_currentDirection))                
+                UpdateTexture(_sprites[_currentDirection]);
+            if (Texture != null)
+                Origin = new Vector2(Texture.Width / 2f, Texture.Height);
 
             Life = Constants.MaxLife;
             ExplosionEffect = new Explosion();
@@ -891,14 +984,19 @@ namespace IsometricGame.Classes
             Vector2 shotDirection = Vector2.Zero;
             switch (_currentDirection)
             {
-                case "south": shotDirection = new Vector2(0, 1); break;
-                case "west": shotDirection = new Vector2(-1, 0); break;                default: shotDirection = new Vector2(0, 1); break;            }
-
+                // Mapeia direções da TELA para vetores do MUNDO
+                case "north": shotDirection = new Vector2(-1, -1); break; // Cima da Tela
+                case "south": shotDirection = new Vector2(1, 1); break;   // Baixo da Tela
+                case "west": shotDirection = new Vector2(-1, 1); break;  // Esquerda da Tela
+                case "east": shotDirection = new Vector2(1, -1); break;  // Direita da Tela
+                default: shotDirection = new Vector2(1, 1); break; // Padrão
+            }
 
             var bullets = Bullet.CreateBullets(
                 pattern: "single",
                 worldPos: this.WorldPosition,
-                worldDirection: shotDirection,                isFromPlayer: true
+                worldDirection: shotDirection, // O vetor do mundo já está correto
+                isFromPlayer: true
             );
 
             foreach (var bullet in bullets)
@@ -911,10 +1009,19 @@ namespace IsometricGame.Classes
 
         private void Animate()
         {
-            string targetDirection = _currentDirection;            if (_movingUp) targetDirection = "west";            else if (_movingDown) targetDirection = "south";            else if (_movingLeft) targetDirection = "west";            else if (_movingRight) targetDirection = "south";
+            string targetDirection = _currentDirection;
+
+            if (_movingUp) targetDirection = "north";
+            else if (_movingDown) targetDirection = "south";
+            else if (_movingLeft) targetDirection = "west";
+            else if (_movingRight) targetDirection = "east";
+
             _currentDirection = targetDirection;
+
             if (_sprites.ContainsKey(_currentDirection))
                 UpdateTexture(_sprites[_currentDirection]);
+            if (Texture != null)
+                Origin = new Vector2(Texture.Width / 2f, Texture.Height);
         }
         public override void Update(GameTime gameTime, float dt)
         {
@@ -925,10 +1032,10 @@ namespace IsometricGame.Classes
             _isInvincible = totalMilliseconds - _lastHit < _invincibilityDuration;
 
             Vector2 worldDirection = Vector2.Zero;
-            if (_movingUp) worldDirection.Y -= 1;
-            if (_movingDown) worldDirection.Y += 1;
-            if (_movingLeft) worldDirection.X -= 1;
-            if (_movingRight) worldDirection.X += 1;
+            if (_movingUp) worldDirection += new Vector2(-1, -1); // Cima (Norte)
+            if (_movingDown) worldDirection += new Vector2(1, 1);   // Baixo (Sul)
+            if (_movingLeft) worldDirection += new Vector2(-1, 1);  // Esquerda (Oeste)
+            if (_movingRight) worldDirection += new Vector2(1, -1);  // Direita (Leste)
 
             if (worldDirection != Vector2.Zero)
             {
@@ -998,17 +1105,23 @@ namespace IsometricGame.Classes
 
         public Sprite(Texture2D texture, Vector2 worldPosition)
         {
-            Texture = texture;
             WorldPosition = worldPosition;
             WorldVelocity = Vector2.Zero;
-            UpdateScreenPosition();        }
+
+            // Esta é a mudança principal:
+            // Precisamos chamar UpdateTexture para definir a Texture E a Origin.
+            // A Origin correta (base da imagem) é essencial para o sorting isométrico.
+            UpdateTexture(texture);
+
+            UpdateScreenPosition();
+        }
 
         protected void UpdateTexture(Texture2D newTexture)
         {
             if (newTexture != null)
             {
                 Texture = newTexture;
-                Origin = new Vector2(Texture.Width / 2f, Texture.Height);
+                Origin = new Vector2(Texture.Width / 2f, Texture.Height / 2f);
             }
         }
 
@@ -1026,15 +1139,28 @@ namespace IsometricGame.Classes
         {
             if (Texture != null && !IsRemoved)
             {
+                // --- INÍCIO DA MODIFICAÇÃO ---
+                // Arredonda as coordenadas X e Y para o inteiro mais próximo
+                // Isso "trava" o sprite na grade de pixels, evitando micro-desalinhamentos.
+                Vector2 drawPosition = new Vector2(
+                    MathF.Round(ScreenPosition.X),
+                    MathF.Round(ScreenPosition.Y)
+                );
+                // --- FIM DA MODIFICAÇÃO ---
+
                 float depth = IsoMath.GetDepth(WorldPosition);
+
                 spriteBatch.Draw(Texture,
-                                 ScreenPosition,
+                                 // Usa a posição arredondada
+                                 drawPosition,
                                  null,
                                  Color.White,
                                  0f,
                                  Origin,
-                                 1.0f,                                 SpriteEffects.None,
-                                 depth);            }
+                                 1.0f,
+                                 SpriteEffects.None,
+                                 depth);
+            }
         }
 
         public void Kill() => IsRemoved = true;
@@ -1054,6 +1180,13 @@ namespace IsometricGame.States
     public static class DrawUtils
     {
         public static void DrawText(SpriteBatch spriteBatch, string text, SpriteFont font, Vector2 position, Color color, float depth = 1.0f)
+        {
+            Vector2 origin = font.MeasureString(text) / 2f;
+            spriteBatch.DrawString(font, text, position, color, 0, origin, 1.0f, SpriteEffects.None, depth);
+        }
+
+        // Nova função para desenhar texto em coordenadas de TELA
+        public static void DrawTextScreen(SpriteBatch spriteBatch, string text, SpriteFont font, Vector2 position, Color color, float depth = 1.0f)
         {
             Vector2 origin = font.MeasureString(text) / 2f;
             spriteBatch.DrawString(font, text, position, color, 0, origin, 1.0f, SpriteEffects.None, depth);
@@ -1079,36 +1212,43 @@ namespace IsometricGame.States
             Texture2D pixel = GameEngine.Assets.Images["pixel"];
             SpriteFont fontTitle = GameEngine.Assets.Fonts["captain_80"];
             SpriteFont fontOption = GameEngine.Assets.Fonts["captain_42"];
-            Vector2 center = Game1.Camera.ScreenToWorld(new Vector2(Constants.InternalResolution.X / 2f, Constants.InternalResolution.Y / 2f));
+
+            // Não converte mais para "mundo", usa o centro da tela interna
+            Vector2 center = new Vector2(Constants.InternalResolution.X / 2f, Constants.InternalResolution.Y / 2f);
 
             if (!string.IsNullOrEmpty(title))
             {
-                Vector2 titlePos = Game1.Camera.ScreenToWorld(new Vector2(Constants.InternalResolution.X / 2f, Constants.InternalResolution.Y / 2f - 150));
-                DrawText(spriteBatch, title, fontTitle, titlePos, Constants.TitleYellow1, 1.0f);
+                // Usa coordenadas de tela
+                Vector2 titlePos = new Vector2(Constants.InternalResolution.X / 2f, Constants.InternalResolution.Y / 2f - 150);
+                // Usa a nova função DrawTextScreen
+                DrawTextScreen(spriteBatch, title, fontTitle, titlePos, Constants.TitleYellow1, 1.0f);
             }
 
             float yGap = 50f;
-            float startY = center.Y - (options.Count / 2f * yGap) + 50f;
-            Vector2 startPosScreen = new Vector2(Constants.InternalResolution.X / 2f, Constants.InternalResolution.Y / 2f - (options.Count / 2f * yGap) + 50f);
+            // Usa o centro da tela
+            Vector2 startPosScreen = new Vector2(center.X, center.Y - (options.Count / 2f * yGap) + 50f);
 
             for (int i = 0; i < options.Count; i++)
             {
                 Color color = (i == selected) ? Constants.GameColor : Color.White;
-
                 Vector2 posScreen = new Vector2(startPosScreen.X, startPosScreen.Y + i * yGap);
-                Vector2 posWorld = Game1.Camera.ScreenToWorld(posScreen);
-                DrawText(spriteBatch, options[i], fontOption, posWorld, color, 1.0f);
+
+                // Usa a nova função DrawTextScreen
+                DrawTextScreen(spriteBatch, options[i], fontOption, posScreen, color, 1.0f);
 
                 if (i == selected)
                 {
                     float textWidth = fontOption.MeasureString(options[i]).X / 2f;
-                    Vector2 leftMarkerPos = Game1.Camera.ScreenToWorld(new Vector2(posScreen.X - textWidth - 20, posScreen.Y));
-                    Vector2 rightMarkerPos = Game1.Camera.ScreenToWorld(new Vector2(posScreen.X + textWidth + 20, posScreen.Y));
+                    // Usa coordenadas de tela
+                    Vector2 leftMarkerPos = new Vector2(posScreen.X - textWidth - 20, posScreen.Y);
+                    Vector2 rightMarkerPos = new Vector2(posScreen.X + textWidth + 20, posScreen.Y);
 
-                    DrawText(spriteBatch, "|", fontOption, leftMarkerPos, color, 1.0f);
-                    DrawText(spriteBatch, "|", fontOption, rightMarkerPos, color, 1.0f);
+                    // Usa a nova função DrawTextScreen
+                    DrawTextScreen(spriteBatch, "|", fontOption, leftMarkerPos, color, 1.0f);
+                    DrawTextScreen(spriteBatch, "|", fontOption, rightMarkerPos, color, 1.0f);
                 }
             }
+            // --- FIM DA MODIFICAÇÃO ---
         }
     }
 }
@@ -1253,6 +1393,7 @@ namespace IsometricGame.States
     {
         private Explosion _hitExplosion;
         private Fall _backgroundFall;
+        private MapGenerator _mapGenerator;
 
         public override void Start()
         {
@@ -1262,10 +1403,16 @@ namespace IsometricGame.States
             _hitExplosion = new Explosion();
             _backgroundFall = new Fall(300);
 
-            Vector2 playerPos = Vector2.Zero;
-            GameEngine.Player = new Player(playerPos);
-            GameEngine.AllSprites.Add(GameEngine.Player);
+            // 1. Gera o mapa PRIMEIRO
+            _mapGenerator = new MapGenerator();
+            _mapGenerator.GenerateMap(); // Isso irá popular GameEngine.AllSprites com tiles
 
+            // 2. Adiciona o Player
+            Vector2 playerPos = new Vector2(10, 10); // Posição inicial no meio do "castelo"
+            GameEngine.Player = new Player(playerPos);
+            GameEngine.AllSprites.Add(GameEngine.Player); // Adiciona o player DEPOIS dos tiles
+
+            // 3. Adiciona os Inimigos
             SpawnEnemies();
         }
 
@@ -1405,26 +1552,36 @@ namespace IsometricGame.States
                 GameEngine.Player = null;
             }
         }
-        public override void Draw(SpriteBatch spriteBatch, GraphicsDevice graphicsDevice)
+
+        public void DrawWorld(SpriteBatch spriteBatch)
         {
             foreach (var sprite in GameEngine.AllSprites)
             {
-                if (!sprite.IsRemoved)                    sprite.Draw(spriteBatch);
+                if (!sprite.IsRemoved)
+                    sprite.Draw(spriteBatch);
             }
 
             if (GameEngine.Player != null)
                 GameEngine.Player.ExplosionEffect.Draw(spriteBatch);
 
             _hitExplosion.Draw(spriteBatch);
-            var font = GameEngine.Assets.Fonts["captain_32"];
-            Vector2 levelPos = Game1.Camera.ScreenToWorld(new Vector2(Constants.InternalResolution.X - 100, 30));
-            Vector2 lifePos = Game1.Camera.ScreenToWorld(new Vector2(Constants.InternalResolution.X - 100, 60));
+        }
+        public override void Draw(SpriteBatch spriteBatch, GraphicsDevice graphicsDevice)
+        {
+            // O código de desenhar sprites foi movido para DrawWorld()
 
-            DrawUtils.DrawText(spriteBatch, $"Level {GameEngine.Level}", font, levelPos, Color.White, 1.0f);
+            var font = GameEngine.Assets.Fonts["captain_32"];
+
+            // Usa coordenadas de tela
+            Vector2 levelPos = new Vector2(Constants.InternalResolution.X - 100, 30);
+            Vector2 lifePos = new Vector2(Constants.InternalResolution.X - 100, 60);
+
+            // Usa a nova função DrawTextScreen
+            DrawUtils.DrawTextScreen(spriteBatch, $"Level {GameEngine.Level}", font, levelPos, Color.White, 1.0f);
             if (GameEngine.Player != null)
-                DrawUtils.DrawText(spriteBatch, $"Life  {GameEngine.Player.Life}", font, lifePos, Color.White, 1.0f);
+                DrawUtils.DrawTextScreen(spriteBatch, $"Life  {GameEngine.Player.Life}", font, lifePos, Color.White, 1.0f);
             else
-                DrawUtils.DrawText(spriteBatch, "Life  0", font, lifePos, Color.Red, 1.0f);
+                DrawUtils.DrawTextScreen(spriteBatch, "Life  0", font, lifePos, Color.Red, 1.0f);
         }
     }
 }
@@ -1737,7 +1894,8 @@ namespace IsometricGame
         public static Point WindowSize = Resolutions[2];
         public const int FrameRate = 75;
         public const int MaxLife = 3;
-        public const float BaseSpeedMultiplier = 2.0f;        public static Point IsoTileSize = new Point(64, 32);
+        public const float BaseSpeedMultiplier = 2.0f;
+        public static Point IsoTileSize = new Point(36, 16);
         public static Point WorldSize = new Point(100, 100);
         public static Color BackgroundColor = new Color(15, 25, 27, 200);
         public static Color BackgroundColorGame1 = new Color(15, 25, 27, 255);
@@ -1852,6 +2010,8 @@ namespace IsometricGame
             _inputManager = new InputManager();
             Camera = new Camera(Constants.InternalResolution.X, Constants.InternalResolution.Y);
             MenuBackgroundFall = new Fall(150);
+            Camera.SetZoom(2.0f);
+
             _states.Add("Menu", new MenuState());
             _states.Add("Game", new GameplayState());
             _states.Add("Pause", new PauseState());
@@ -1927,6 +2087,8 @@ namespace IsometricGame
         {
             GraphicsDevice.SetRenderTarget(_renderTarget);
             GraphicsDevice.Clear(Constants.BackgroundColor);
+
+            // --- BATCH 1: Fundos da UI (Sem Câmera) ---
             _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp);
 
             if (_currentState is MenuState || _currentState is OptionsState || _currentState is GameOverState)
@@ -1936,19 +2098,45 @@ namespace IsometricGame
             }
 
             _spriteBatch.End();
+
+
+            // --- BATCH 2: O Mundo (COM Câmera e Zoom) ---
             _spriteBatch.Begin(SpriteSortMode.BackToFront,
                                BlendState.AlphaBlend,
                                SamplerState.PointClamp,
                                null, null, null,
-                               Camera.GetViewMatrix());
+                               Camera.GetViewMatrix()); // <-- ZOOM APLICADO AQUI
 
+            if (_currentState is GameplayState)
+            {
+                // Chama o novo método que desenha apenas o mundo
+                ((GameplayState)_currentState).DrawWorld(_spriteBatch);
+            }
+
+            _spriteBatch.End(); // Fim do Batch do Mundo
+
+
+            // --- BATCH 3: A UI (Sem Câmera) ---
+            _spriteBatch.Begin(SpriteSortMode.Deferred,
+                               BlendState.AlphaBlend,
+                               SamplerState.PointClamp);
+            // <-- Sem Matriz, usa Coordenadas de Tela
+
+            // Chama o método Draw padrão, que agora só desenha a UI
+            // (Menus, HUD do GameplayState, etc.)
             _currentState.Draw(_spriteBatch, GraphicsDevice);
 
             if (Constants.ShowFPS && !string.IsNullOrEmpty(_fpsDisplay))
-                DrawUtils.DrawText(_spriteBatch, _fpsDisplay, GameEngine.Assets.Fonts["captain_32"],
-                    Camera.ScreenToWorld(new Vector2(10, 10)), Color.White, 1.0f);
+            {
+                // Usa a nova função DrawTextScreen
+                DrawUtils.DrawTextScreen(_spriteBatch, _fpsDisplay, GameEngine.Assets.Fonts["captain_32"],
+                    new Vector2(10, 10), Color.White, 1.0f);
+            }
 
-            _spriteBatch.End();
+            _spriteBatch.End(); // Fim do Batch da UI
+
+
+            // --- BATCH 4: Renderização Final para a Janela ---
             GraphicsDevice.SetRenderTarget(null);
             GraphicsDevice.Clear(Color.Black);
 
@@ -2119,7 +2307,64 @@ namespace IsometricGame
             float totalWorldUnits = Constants.WorldSize.X + Constants.WorldSize.Y;
             float currentWorldUnits = worldPosition.X + worldPosition.Y;
 
-            return Math.Clamp(currentWorldUnits / totalWorldUnits, 0f, 1f);
+            // Normaliza a profundidade (0.0 para o topo, 1.0 para a base)
+            float normalizedDepth = currentWorldUnits / totalWorldUnits;
+
+            // Inverte o valor!
+            // Agora o topo (0,0) será 1.0 (desenhado atrás)
+            // E a base (100,100) será 0.0 (desenhada na frente)
+            return Math.Clamp(1.0f - normalizedDepth, 0.0f, 1.0f);
+        }
+    }
+}
+
+MapGenerator.cs:
+Directory: .
+
+﻿using IsometricGame.Classes;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+
+namespace IsometricGame
+{
+    public class MapGenerator
+    {
+        public void GenerateMap()
+        {
+            Texture2D floorTexture = GameEngine.Assets.Images["tile_floor"];
+            Texture2D wallTexture = GameEngine.Assets.Images["tile_wall"];
+
+            // 1. Gerar o Chão
+            // Itera por todo o tamanho do mundo definido em Constants
+            for (int x = 0; x < Constants.WorldSize.X; x++)
+            {
+                for (int y = 0; y < Constants.WorldSize.Y; y++)
+                {
+                    // Cria um novo sprite para o tile de chão
+                    var floorTile = new Sprite(floorTexture, new Vector2(x, y));
+
+                    // Adiciona o tile à lista global de sprites para ser renderizado
+                    GameEngine.AllSprites.Add(floorTile);
+                }
+            }
+
+            // 2. Gerar Estruturas (Ex: paredes de um "castelo")
+            // Isso demonstra como adicionar estruturas "em cima" do chão
+            // O sistema de profundidade (GetDepth) fará o resto.
+            for (int i = 5; i < 15; i++)
+            {
+                // Parede esquerda
+                var wallLeft = new Sprite(wallTexture, new Vector2(5, i));
+                GameEngine.AllSprites.Add(wallLeft);
+
+                // Parede do fundo
+                var wallTop = new Sprite(wallTexture, new Vector2(i, 5));
+                GameEngine.AllSprites.Add(wallTop);
+            }
+
+            // Adiciona uma "porta"
+            var doorTile = new Sprite(floorTexture, new Vector2(5, 10)); // Re-adiciona um tile de chão
+            GameEngine.AllSprites.Add(doorTile);
         }
     }
 }
@@ -2152,7 +2397,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("IsometricGame")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8223eadf8a9e7a518044734e552020fc0aa8c8d8")]
 [assembly: System.Reflection.AssemblyProductAttribute("IsometricGame")]
 [assembly: System.Reflection.AssemblyTitleAttribute("IsometricGame")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -2161,23 +2406,28 @@ using System.Reflection;
 
 
 
+obj\Debug\net8.0\IsometricGame.sourcelink.json:
+Directory: obj\Debug\net8.0
+
+{"documents":{"D:\\repos\\IsometricGame-MonoGame\\*":"https://raw.githubusercontent.com/g-brrzzn/IsometricGame-MonoGame/8223eadf8a9e7a518044734e552020fc0aa8c8d8/*"}}
+
 obj\IsometricGame.csproj.nuget.dgspec.json:
 Directory: obj
 
 {
   "format": 1,
   "restore": {
-    "D:\\repos\\IsometricGame\\IsometricGame\\IsometricGame.csproj": {}
+    "D:\\repos\\IsometricGame-MonoGame\\IsometricGame\\IsometricGame.csproj": {}
   },
   "projects": {
-    "D:\\repos\\IsometricGame\\IsometricGame\\IsometricGame.csproj": {
+    "D:\\repos\\IsometricGame-MonoGame\\IsometricGame\\IsometricGame.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\repos\\IsometricGame\\IsometricGame\\IsometricGame.csproj",
+        "projectUniqueName": "D:\\repos\\IsometricGame-MonoGame\\IsometricGame\\IsometricGame.csproj",
         "projectName": "IsometricGame",
-        "projectPath": "D:\\repos\\IsometricGame\\IsometricGame\\IsometricGame.csproj",
+        "projectPath": "D:\\repos\\IsometricGame-MonoGame\\IsometricGame\\IsometricGame.csproj",
         "packagesPath": "C:\\Users\\gabri\\.nuget\\packages\\",
-        "outputPath": "D:\\repos\\IsometricGame\\IsometricGame\\obj\\",
+        "outputPath": "D:\\repos\\IsometricGame-MonoGame\\IsometricGame\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -2610,11 +2860,11 @@ Directory: obj
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\repos\\IsometricGame\\IsometricGame\\IsometricGame.csproj",
+      "projectUniqueName": "D:\\repos\\IsometricGame-MonoGame\\IsometricGame\\IsometricGame.csproj",
       "projectName": "IsometricGame",
-      "projectPath": "D:\\repos\\IsometricGame\\IsometricGame\\IsometricGame.csproj",
+      "projectPath": "D:\\repos\\IsometricGame-MonoGame\\IsometricGame\\IsometricGame.csproj",
       "packagesPath": "C:\\Users\\gabri\\.nuget\\packages\\",
-      "outputPath": "D:\\repos\\IsometricGame\\IsometricGame\\obj\\",
+      "outputPath": "D:\\repos\\IsometricGame-MonoGame\\IsometricGame\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

@@ -29,10 +29,15 @@ namespace IsometricGame.Classes
             _sprites = new Dictionary<string, Texture2D>
             {
                 { "south", GameEngine.Assets.Images["player_idle_south"] },
-                { "west", GameEngine.Assets.Images["player_idle_west"] }
+                { "west", GameEngine.Assets.Images["player_idle_west"] },
+                { "north", GameEngine.Assets.Images["player_idle_north"] },
+                { "east", GameEngine.Assets.Images["player_idle_east"] }
             };
 
-            if (_sprites.ContainsKey(_currentDirection))                UpdateTexture(_sprites[_currentDirection]);
+            if (_sprites.ContainsKey(_currentDirection))                
+                UpdateTexture(_sprites[_currentDirection]);
+            if (Texture != null)
+                Origin = new Vector2(Texture.Width / 2f, Texture.Height);
 
             Life = Constants.MaxLife;
             ExplosionEffect = new Explosion();
@@ -53,14 +58,19 @@ namespace IsometricGame.Classes
             Vector2 shotDirection = Vector2.Zero;
             switch (_currentDirection)
             {
-                case "south": shotDirection = new Vector2(0, 1); break;
-                case "west": shotDirection = new Vector2(-1, 0); break;                default: shotDirection = new Vector2(0, 1); break;            }
-
+                // Mapeia direções da TELA para vetores do MUNDO
+                case "north": shotDirection = new Vector2(-1, -1); break; // Cima da Tela
+                case "south": shotDirection = new Vector2(1, 1); break;   // Baixo da Tela
+                case "west": shotDirection = new Vector2(-1, 1); break;  // Esquerda da Tela
+                case "east": shotDirection = new Vector2(1, -1); break;  // Direita da Tela
+                default: shotDirection = new Vector2(1, 1); break; // Padrão
+            }
 
             var bullets = Bullet.CreateBullets(
                 pattern: "single",
                 worldPos: this.WorldPosition,
-                worldDirection: shotDirection,                isFromPlayer: true
+                worldDirection: shotDirection, // O vetor do mundo já está correto
+                isFromPlayer: true
             );
 
             foreach (var bullet in bullets)
@@ -73,10 +83,19 @@ namespace IsometricGame.Classes
 
         private void Animate()
         {
-            string targetDirection = _currentDirection;            if (_movingUp) targetDirection = "west";            else if (_movingDown) targetDirection = "south";            else if (_movingLeft) targetDirection = "west";            else if (_movingRight) targetDirection = "south";
+            string targetDirection = _currentDirection;
+
+            if (_movingUp) targetDirection = "north";
+            else if (_movingDown) targetDirection = "south";
+            else if (_movingLeft) targetDirection = "west";
+            else if (_movingRight) targetDirection = "east";
+
             _currentDirection = targetDirection;
+
             if (_sprites.ContainsKey(_currentDirection))
                 UpdateTexture(_sprites[_currentDirection]);
+            if (Texture != null)
+                Origin = new Vector2(Texture.Width / 2f, Texture.Height);
         }
         public override void Update(GameTime gameTime, float dt)
         {
@@ -87,10 +106,10 @@ namespace IsometricGame.Classes
             _isInvincible = totalMilliseconds - _lastHit < _invincibilityDuration;
 
             Vector2 worldDirection = Vector2.Zero;
-            if (_movingUp) worldDirection.Y -= 1;
-            if (_movingDown) worldDirection.Y += 1;
-            if (_movingLeft) worldDirection.X -= 1;
-            if (_movingRight) worldDirection.X += 1;
+            if (_movingUp) worldDirection += new Vector2(-1, -1); // Cima (Norte)
+            if (_movingDown) worldDirection += new Vector2(1, 1);   // Baixo (Sul)
+            if (_movingLeft) worldDirection += new Vector2(-1, 1);  // Esquerda (Oeste)
+            if (_movingRight) worldDirection += new Vector2(1, -1);  // Direita (Leste)
 
             if (worldDirection != Vector2.Zero)
             {
