@@ -23,7 +23,7 @@ namespace IsometricGame.Classes
         private bool _isHit = false;
 
 
-        public EnemyBase(Vector2 worldPos, List<string> spriteKeys) : base(null, worldPos)
+        public EnemyBase(Vector3 worldPos, List<string> spriteKeys) : base(null, worldPos)
         {
             _sprites = LoadSprites(spriteKeys);
             _explosion = new Explosion();
@@ -81,13 +81,15 @@ namespace IsometricGame.Classes
             for (int i = 0; i < Weight; i++)
             {
                 if (GameEngine.Random.Next(0, 500 / Weight) < 1)                {
-                    Vector2 direction = GameEngine.Player.WorldPosition - this.WorldPosition;
+                    Vector2 currentPosXY = new Vector2(this.WorldPosition.X, this.WorldPosition.Y);
+                    Vector2 playerPosXY = new Vector2(GameEngine.Player.WorldPosition.X, GameEngine.Player.WorldPosition.Y);
+                    Vector2 direction = playerPosXY - currentPosXY;
                     if (direction != Vector2.Zero)
                         direction.Normalize();
 
                     var bullets = Bullet.CreateBullets(
                         pattern: "single",
-                        worldPos: this.WorldPosition,
+                        worldPos: currentPosXY,
                         worldDirection: direction,
                         isFromPlayer: false
                     );
@@ -109,7 +111,10 @@ namespace IsometricGame.Classes
             }
             ;
 
-            Vector2 direction = GameEngine.Player.WorldPosition - this.WorldPosition;
+            Vector2 direction = new Vector2(
+                GameEngine.Player.WorldPosition.X - this.WorldPosition.X,
+                GameEngine.Player.WorldPosition.Y - this.WorldPosition.Y
+            );
             float distance = direction.Length();
 
             if (distance > 0.5f)

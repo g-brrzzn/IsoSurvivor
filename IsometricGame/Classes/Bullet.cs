@@ -19,8 +19,8 @@ namespace IsometricGame.Classes
 
         public bool IsFromPlayer { get; private set; }
 
-        public Bullet(Vector2 worldPos, Vector2 worldDirection, bool isFromPlayer, BulletOptions options = null)
-            : base(null, worldPos)
+        public Bullet(Vector2 worldPosXY, Vector2 worldDirection, bool isFromPlayer, BulletOptions options = null)
+            : base(null, new Vector3(worldPosXY.X, worldPosXY.Y, 0))
         {
             IsFromPlayer = isFromPlayer;
             options ??= new BulletOptions();            float speedScale = options.SpeedScale.Value;

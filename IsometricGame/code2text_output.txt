@@ -453,8 +453,8 @@ namespace IsometricGame.Classes
 
         public bool IsFromPlayer { get; private set; }
 
-        public Bullet(Vector2 worldPos, Vector2 worldDirection, bool isFromPlayer, BulletOptions options = null)
-            : base(null, worldPos)
+        public Bullet(Vector2 worldPosXY, Vector2 worldDirection, bool isFromPlayer, BulletOptions options = null)
+            : base(null, new Vector3(worldPosXY.X, worldPosXY.Y, 0))
         {
             IsFromPlayer = isFromPlayer;
             options ??= new BulletOptions();            float speedScale = options.SpeedScale.Value;
@@ -541,12 +541,22 @@ namespace IsometricGame.Classes
 {
     public class Enemy1 : EnemyBase
     {
-        public Enemy1(Vector2 worldPos)
-            : base(worldPos, new List<string> { "enemy1_idle_south", "enemy1_idle_west" })
+        // --- MODIFICAÇÃO: Passa Vector3 para o construtor base ---
+        // Adiciona um Z=0 padrão se chamado com Vector2 (mantém compatibilidade)
+        public Enemy1(Vector2 worldPosXY)
+            : this(new Vector3(worldPosXY.X, worldPosXY.Y, 0)) { }
+
+        // Novo construtor que aceita Vector3
+        public Enemy1(Vector3 worldPos)
+            : base(worldPos, new List<string> {
+                "enemy1_idle_south", "enemy1_idle_west",
+                "enemy1_idle_north", "enemy1_idle_east" // Garanta que estes estão no AssetManager
+            })
         {
             Life = 1;
             Weight = 1;
-            Speed = 3.0f;        }
+            Speed = 3.0f;
+        }
     }
 }
 
@@ -578,7 +588,7 @@ namespace IsometricGame.Classes
         private bool _isHit = false;
 
 
-        public EnemyBase(Vector2 worldPos, List<string> spriteKeys) : base(null, worldPos)
+        public EnemyBase(Vector3 worldPos, List<string> spriteKeys) : base(null, worldPos)
         {
             _sprites = LoadSprites(spriteKeys);
             _explosion = new Explosion();
@@ -636,13 +646,15 @@ namespace IsometricGame.Classes
             for (int i = 0; i < Weight; i++)
             {
                 if (GameEngine.Random.Next(0, 500 / Weight) < 1)                {
-                    Vector2 direction = GameEngine.Player.WorldPosition - this.WorldPosition;
+                    Vector2 currentPosXY = new Vector2(this.WorldPosition.X, this.WorldPosition.Y);
+                    Vector2 playerPosXY = new Vector2(GameEngine.Player.WorldPosition.X, GameEngine.Player.WorldPosition.Y);
+                    Vector2 direction = playerPosXY - currentPosXY;
                     if (direction != Vector2.Zero)
                         direction.Normalize();
 
                     var bullets = Bullet.CreateBullets(
                         pattern: "single",
-                        worldPos: this.WorldPosition,
+                        worldPos: currentPosXY,
                         worldDirection: direction,
                         isFromPlayer: false
                     );
@@ -664,7 +676,10 @@ namespace IsometricGame.Classes
             }
             ;
 
-            Vector2 direction = GameEngine.Player.WorldPosition - this.WorldPosition;
+            Vector2 direction = new Vector2(
+                GameEngine.Player.WorldPosition.X - this.WorldPosition.X,
+                GameEngine.Player.WorldPosition.Y - this.WorldPosition.Y
+            );
             float distance = direction.Length();
 
             if (distance > 0.5f)
@@ -942,7 +957,7 @@ namespace IsometricGame.Classes
         private double _lastShot;
 
         private bool _movingRight, _movingLeft, _movingUp, _movingDown, _firing;
-        private float _speed = 4.0f;
+        private float _speed = 6.0f;
         public int Life { get; private set; }
         public Explosion ExplosionEffect { get; private set; }
         private double _lastHit;
@@ -950,7 +965,7 @@ namespace IsometricGame.Classes
         private bool _isInvincible = false;
 
 
-        public Player(Vector2 worldPos) : base(null, worldPos)
+        public Player(Vector3 worldPos) : base(null, worldPos)
         {
             _sprites = new Dictionary<string, Texture2D>
             {
@@ -994,7 +1009,7 @@ namespace IsometricGame.Classes
 
             var bullets = Bullet.CreateBullets(
                 pattern: "single",
-                worldPos: this.WorldPosition,
+                worldPos: new Vector2(this.WorldPosition.X, this.WorldPosition.Y),
                 worldDirection: shotDirection, // O vetor do mundo já está correto
                 isFromPlayer: true
             );
@@ -1096,24 +1111,19 @@ namespace IsometricGame.Classes
     public class Sprite
     {
         public Texture2D Texture { get; set; }
-        public Vector2 WorldPosition { get; set; }
+        public Vector3 WorldPosition { get; set; }
         public Vector2 ScreenPosition { get; protected set; }
         public Vector2 WorldVelocity { get; set; }
 
         public bool IsRemoved { get; set; } = false;
         public Vector2 Origin { get; protected set; }
 
-        public Sprite(Texture2D texture, Vector2 worldPosition)
+        public Sprite(Texture2D texture, Vector3 worldPosition)
         {
             WorldPosition = worldPosition;
             WorldVelocity = Vector2.Zero;
-
-            // Esta é a mudança principal:
-            // Precisamos chamar UpdateTexture para definir a Texture E a Origin.
-            // A Origin correta (base da imagem) é essencial para o sorting isométrico.
             UpdateTexture(texture);
-
-            UpdateScreenPosition();
+            UpdateScreenPosition(); // Chama o IsoMath atualizado
         }
 
         protected void UpdateTexture(Texture2D newTexture)
@@ -1131,7 +1141,9 @@ namespace IsometricGame.Classes
         }
         public virtual void Update(GameTime gameTime, float dt)
         {
-            WorldPosition += WorldVelocity * dt;
+            // --- MODIFICAÇÃO: Aplica velocidade 2D à posição 3D ---
+            WorldPosition += new Vector3(WorldVelocity.X, WorldVelocity.Y, 0) * dt;
+            // --- FIM DA MODIFICAÇÃO ---
             UpdateScreenPosition();
         }
 
@@ -1387,6 +1399,7 @@ using IsometricGame.Classes.Particles;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+
 namespace IsometricGame.States
 {
     public class GameplayState : GameStateBase
@@ -1408,8 +1421,10 @@ namespace IsometricGame.States
             _mapGenerator.GenerateMap(); // Isso irá popular GameEngine.AllSprites com tiles
 
             // 2. Adiciona o Player
-            Vector2 playerPos = new Vector2(10, 10); // Posição inicial no meio do "castelo"
-            GameEngine.Player = new Player(playerPos);
+            // --- CORREÇÃO: Passa Vector3(x, y, 0) para o construtor do Player ---
+            Vector3 playerStartPos = new Vector3(10, 10, 0); // Posição inicial no meio do "castelo" com Z=0
+            GameEngine.Player = new Player(playerStartPos);
+            // --- FIM DA CORREÇÃO ---
             GameEngine.AllSprites.Add(GameEngine.Player); // Adiciona o player DEPOIS dos tiles
 
             // 3. Adiciona os Inimigos
@@ -1423,13 +1438,16 @@ namespace IsometricGame.States
                 float x = GameEngine.Random.Next(-10, 10);
                 float y = GameEngine.Random.Next(-10, 10);
                 if (Math.Abs(x) < 2 && Math.Abs(y) < 2) continue;
-                SpawnEnemy(typeof(Enemy1), new Vector2(x, y));
+                // Passa Vector3 para SpawnEnemy (já estava correto aqui)
+                SpawnEnemy(typeof(Enemy1), new Vector3(x, y, 0));
             }
         }
 
-        private void SpawnEnemy(Type enemyType, Vector2 worldPos)
+        // Aceita Vector3 (já estava correto aqui)
+        private void SpawnEnemy(Type enemyType, Vector3 worldPos)
         {
             EnemyBase enemy = null;
+            // O construtor de Enemy1 aceita Vector3 (verifique se Enemy1.cs foi atualizado)
             if (enemyType == typeof(Enemy1)) enemy = new Enemy1(worldPos);
 
             if (enemy != null)
@@ -1447,7 +1465,8 @@ namespace IsometricGame.States
             {
                 IsDone = true;
                 NextState = "Pause";
-                return;            }
+                return;
+            }
             if (GameEngine.Player == null)
             {
                 if (!IsDone)
@@ -1455,11 +1474,19 @@ namespace IsometricGame.States
                     IsDone = true;
                     NextState = "GameOver";
                 }
-                return;            }
+                return;
+            }
             GameEngine.Player.GetInput(input);
             _hitExplosion.Update(effectiveDt);
+            // --- ATENÇÃO: Corrigido loop para evitar problemas de modificação da coleção ---
+            // Usar um loop for reverso ou copiar a lista antes de iterar é mais seguro
+            // se Kill() pudesse remover sprites de AllSprites diretamente, mas
+            // como usamos RemoveAll depois, o loop original está OK.
+            // Mantendo o loop original por enquanto.
             for (int i = GameEngine.AllSprites.Count - 1; i >= 0; i--)
             {
+                // Adicionada verificação para garantir que o índice ainda é válido
+                // caso CleanupSprites() fosse chamado dentro do loop (não é o caso aqui).
                 if (i < GameEngine.AllSprites.Count)
                 {
                     var sprite = GameEngine.AllSprites[i];
@@ -1469,6 +1496,8 @@ namespace IsometricGame.States
                     }
                 }
             }
+            // --- FIM DA ATENÇÃO ---
+
             HandleCollisions(gameTime);
             CleanupSprites();
             if (GameEngine.Player == null)
@@ -1478,7 +1507,8 @@ namespace IsometricGame.States
                     IsDone = true;
                     NextState = "GameOver";
                 }
-                return;            }
+                return;
+            }
             if (GameEngine.AllEnemies.Count == 0)
             {
                 GameEngine.Level++;
@@ -1491,37 +1521,55 @@ namespace IsometricGame.States
             const float enemyCollisionRadius = 0.8f;
             const float bulletCollisionRadius = 0.3f;
             const float playerCollisionRadius = 0.6f;
+
             for (int i = GameEngine.AllEnemies.Count - 1; i >= 0; i--)
             {
                 var enemy = GameEngine.AllEnemies[i];
                 if (enemy.IsRemoved) continue;
+                // --- CORREÇÃO: Extrai XY para distância ---
+                Vector2 enemyPosXY = new Vector2(enemy.WorldPosition.X, enemy.WorldPosition.Y);
+                // --- FIM DA CORREÇÃO ---
 
                 for (int j = GameEngine.PlayerBullets.Count - 1; j >= 0; j--)
                 {
                     var bullet = GameEngine.PlayerBullets[j];
                     if (bullet.IsRemoved) continue;
 
-                    if (Vector2.Distance(bullet.WorldPosition, enemy.WorldPosition) < (enemyCollisionRadius + bulletCollisionRadius))
+                    // --- CORREÇÃO: Extrai XY para distância ---
+                    Vector2 bulletPosXY = new Vector2(bullet.WorldPosition.X, bullet.WorldPosition.Y);
+
+                    if (Vector2.Distance(bulletPosXY, enemyPosXY) < (enemyCollisionRadius + bulletCollisionRadius))
                     {
                         if (enemy.Texture != null)
-                            _hitExplosion.Create(enemy.ScreenPosition.X, enemy.ScreenPosition.Y - enemy.Texture.Height / 2f);
+                            // Passa a ScreenPosition (que já é Vector2)
+                            _hitExplosion.Create(enemy.ScreenPosition.X, enemy.ScreenPosition.Y - enemy.Origin.Y); // Usa Origin.Y em vez de Texture.Height/2
                         enemy.Damage(gameTime);
                         bullet.Kill();
                     }
+                    // --- FIM DA CORREÇÃO ---
                 }
             }
             if (!GameEngine.Player.IsRemoved)
             {
+                // --- CORREÇÃO: Extrai XY para distância ---
+                Vector2 playerPosXY = new Vector2(GameEngine.Player.WorldPosition.X, GameEngine.Player.WorldPosition.Y);
+                // --- FIM DA CORREÇÃO ---
+
                 for (int i = GameEngine.EnemyBullets.Count - 1; i >= 0; i--)
                 {
                     var bullet = GameEngine.EnemyBullets[i];
                     if (bullet.IsRemoved) continue;
 
-                    if (Vector2.Distance(bullet.WorldPosition, GameEngine.Player.WorldPosition) < (playerCollisionRadius + bulletCollisionRadius))
+                    // --- CORREÇÃO: Extrai XY para distância ---
+                    Vector2 bulletPosXY = new Vector2(bullet.WorldPosition.X, bullet.WorldPosition.Y);
+
+                    if (Vector2.Distance(bulletPosXY, playerPosXY) < (playerCollisionRadius + bulletCollisionRadius))
                     {
                         GameEngine.Player.TakeDamage(gameTime);
                         bullet.Kill();
-                        if (GameEngine.Player.IsRemoved) break;                    }
+                        if (GameEngine.Player.IsRemoved) break;
+                    }
+                    // --- FIM DA CORREÇÃO ---
                 }
                 if (!GameEngine.Player.IsRemoved)
                 {
@@ -1530,12 +1578,17 @@ namespace IsometricGame.States
                         var enemy = GameEngine.AllEnemies[i];
                         if (enemy.IsRemoved) continue;
 
-                        if (Vector2.Distance(enemy.WorldPosition, GameEngine.Player.WorldPosition) < (enemyCollisionRadius + playerCollisionRadius))
+                        // --- CORREÇÃO: Extrai XY para distância ---
+                        Vector2 enemyPosXY = new Vector2(enemy.WorldPosition.X, enemy.WorldPosition.Y);
+
+                        if (Vector2.Distance(enemyPosXY, playerPosXY) < (enemyCollisionRadius + playerCollisionRadius))
                         {
                             GameEngine.Player.TakeDamage(gameTime);
                             enemy.Kill();
                             GameEngine.ScreenShake = 5;
-                            if (GameEngine.Player.IsRemoved) break;                        }
+                            if (GameEngine.Player.IsRemoved) break;
+                        }
+                        // --- FIM DA CORREÇÃO ---
                     }
                 }
             }
@@ -1562,9 +1615,9 @@ namespace IsometricGame.States
             }
 
             if (GameEngine.Player != null)
-                GameEngine.Player.ExplosionEffect.Draw(spriteBatch);
+                GameEngine.Player.ExplosionEffect.Draw(spriteBatch); // Explosão do player
 
-            _hitExplosion.Draw(spriteBatch);
+            _hitExplosion.Draw(spriteBatch); // Explosão de acerto no inimigo
         }
         public override void Draw(SpriteBatch spriteBatch, GraphicsDevice graphicsDevice)
         {
@@ -1896,6 +1949,8 @@ namespace IsometricGame
         public const int MaxLife = 3;
         public const float BaseSpeedMultiplier = 2.0f;
         public static Point IsoTileSize = new Point(36, 16);
+        public static float TileHeightFactor = 8f;
+        public const int MaxZLevel = 10;
         public static Point WorldSize = new Point(100, 100);
         public static Color BackgroundColor = new Color(15, 25, 27, 200);
         public static Color BackgroundColorGame1 = new Color(15, 25, 27, 255);
@@ -2287,10 +2342,16 @@ namespace IsometricGame
 {
     public static class IsoMath
     {
-        public static Vector2 WorldToScreen(Vector2 worldPosition)
+        public static Vector2 WorldToScreen(Vector3 worldPosition)
         {
             float screenX = (worldPosition.X - worldPosition.Y) * (Constants.IsoTileSize.X / 2f);
             float screenY = (worldPosition.X + worldPosition.Y) * (Constants.IsoTileSize.Y / 2f);
+
+            // --- ADIÇÃO: Subtrai a altura Z da posição Y na tela ---
+            // Cada unidade de Z "levanta" o sprite na tela
+            screenY -= worldPosition.Z * Constants.TileHeightFactor;
+            // --- FIM DA ADIÇÃO ---
+
             return new Vector2(screenX, screenY);
         }
         public static Vector2 ScreenToWorld(Vector2 screenPosition)
@@ -2302,17 +2363,19 @@ namespace IsometricGame
             float worldY = (screenPosition.Y / (tileHeight / 2f) - (screenPosition.X / (tileWidth / 2f))) / 2f;
             return new Vector2(worldX, worldY);
         }
-        public static float GetDepth(Vector2 worldPosition)
+        public static float GetDepth(Vector3 worldPosition)
         {
-            float totalWorldUnits = Constants.WorldSize.X + Constants.WorldSize.Y;
-            float currentWorldUnits = worldPosition.X + worldPosition.Y;
+            // Define um peso para Z. Multiplicar por WorldSize.X garante que
+            // Z tenha um impacto significativo, maior que apenas X ou Y sozinhos.
+            float zWeight = Constants.WorldSize.X;
 
-            // Normaliza a profundidade (0.0 para o topo, 1.0 para a base)
-            float normalizedDepth = currentWorldUnits / totalWorldUnits;
+            float maxPossibleUnits = Constants.WorldSize.X + Constants.WorldSize.Y + Constants.MaxZLevel * zWeight;
+            float currentUnits = worldPosition.X + worldPosition.Y + worldPosition.Z * zWeight;
 
-            // Inverte o valor!
-            // Agora o topo (0,0) será 1.0 (desenhado atrás)
-            // E a base (100,100) será 0.0 (desenhada na frente)
+            // Normaliza (0.0 para topo/frente, 1.0 para base/fundo)
+            float normalizedDepth = currentUnits / maxPossibleUnits;
+
+            // Inverte (1.0 para topo/frente - desenhado primeiro, 0.0 para base/fundo - desenhado por último)
             return Math.Clamp(1.0f - normalizedDepth, 0.0f, 1.0f);
         }
     }
@@ -2334,37 +2397,45 @@ namespace IsometricGame
             Texture2D floorTexture = GameEngine.Assets.Images["tile_floor"];
             Texture2D wallTexture = GameEngine.Assets.Images["tile_wall"];
 
-            // 1. Gerar o Chão
-            // Itera por todo o tamanho do mundo definido em Constants
+            // 1. Gerar o Chão (Z=0)
             for (int x = 0; x < Constants.WorldSize.X; x++)
             {
                 for (int y = 0; y < Constants.WorldSize.Y; y++)
                 {
-                    // Cria um novo sprite para o tile de chão
-                    var floorTile = new Sprite(floorTexture, new Vector2(x, y));
-
-                    // Adiciona o tile à lista global de sprites para ser renderizado
+                    // --- MODIFICAÇÃO: Usa Vector3(x, y, 0) ---
+                    var floorTile = new Sprite(floorTexture, new Vector3(x, y, 0));
                     GameEngine.AllSprites.Add(floorTile);
                 }
             }
 
-            // 2. Gerar Estruturas (Ex: paredes de um "castelo")
-            // Isso demonstra como adicionar estruturas "em cima" do chão
-            // O sistema de profundidade (GetDepth) fará o resto.
+            // 2. Gerar Estruturas (Z=0)
             for (int i = 5; i < 15; i++)
             {
-                // Parede esquerda
-                var wallLeft = new Sprite(wallTexture, new Vector2(5, i));
+                // --- MODIFICAÇÃO: Usa Vector3 ---
+                var wallLeft = new Sprite(wallTexture, new Vector3(5, i, 0));
                 GameEngine.AllSprites.Add(wallLeft);
-
-                // Parede do fundo
-                var wallTop = new Sprite(wallTexture, new Vector2(i, 5));
+                var wallTop = new Sprite(wallTexture, new Vector3(i, 5, 0));
                 GameEngine.AllSprites.Add(wallTop);
             }
 
-            // Adiciona uma "porta"
-            var doorTile = new Sprite(floorTexture, new Vector2(5, 10)); // Re-adiciona um tile de chão
+            // --- MODIFICAÇÃO: Usa Vector3 ---
+            var doorTile = new Sprite(floorTexture, new Vector3(5, 10, 0));
             GameEngine.AllSprites.Add(doorTile);
+
+
+            // --- ADIÇÃO: Exemplo de Empilhamento ---
+            // Cria uma pequena pilha de paredes em (10, 15)
+            var baseWall = new Sprite(wallTexture, new Vector3(10, 15, 0));
+            var stackedWall1 = new Sprite(wallTexture, new Vector3(10, 15, 1)); // Z=1
+            var stackedWall2 = new Sprite(wallTexture, new Vector3(10, 15, 2)); // Z=2
+            // Adiciona um chão no topo da pilha
+            var topFloor = new Sprite(floorTexture, new Vector3(10, 15, 3)); // Z=3
+
+            GameEngine.AllSprites.Add(baseWall);
+            GameEngine.AllSprites.Add(stackedWall1);
+            GameEngine.AllSprites.Add(stackedWall2);
+            GameEngine.AllSprites.Add(topFloor);
+            // --- FIM DA ADIÇÃO ---
         }
     }
 }
@@ -2397,7 +2468,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("IsometricGame")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8223eadf8a9e7a518044734e552020fc0aa8c8d8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+24d37456a59c32b115e532fe76d598214630fcc8")]
 [assembly: System.Reflection.AssemblyProductAttribute("IsometricGame")]
 [assembly: System.Reflection.AssemblyTitleAttribute("IsometricGame")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -2409,7 +2480,7 @@ using System.Reflection;
 obj\Debug\net8.0\IsometricGame.sourcelink.json:
 Directory: obj\Debug\net8.0
 
-{"documents":{"D:\\repos\\IsometricGame-MonoGame\\*":"https://raw.githubusercontent.com/g-brrzzn/IsometricGame-MonoGame/8223eadf8a9e7a518044734e552020fc0aa8c8d8/*"}}
+{"documents":{"D:\\repos\\IsometricGame-MonoGame\\*":"https://raw.githubusercontent.com/g-brrzzn/IsometricGame-MonoGame/24d37456a59c32b115e532fe76d598214630fcc8/*"}}
 
 obj\IsometricGame.csproj.nuget.dgspec.json:
 Directory: obj

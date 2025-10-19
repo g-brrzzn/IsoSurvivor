@@ -16,7 +16,7 @@ namespace IsometricGame.Classes
         private double _lastShot;
 
         private bool _movingRight, _movingLeft, _movingUp, _movingDown, _firing;
-        private float _speed = 4.0f;
+        private float _speed = 6.0f;
         public int Life { get; private set; }
         public Explosion ExplosionEffect { get; private set; }
         private double _lastHit;
@@ -24,7 +24,7 @@ namespace IsometricGame.Classes
         private bool _isInvincible = false;
 
 
-        public Player(Vector2 worldPos) : base(null, worldPos)
+        public Player(Vector3 worldPos) : base(null, worldPos)
         {
             _sprites = new Dictionary<string, Texture2D>
             {
@@ -68,7 +68,7 @@ namespace IsometricGame.Classes
 
             var bullets = Bullet.CreateBullets(
                 pattern: "single",
-                worldPos: this.WorldPosition,
+                worldPos: new Vector2(this.WorldPosition.X, this.WorldPosition.Y),
                 worldDirection: shotDirection, // O vetor do mundo já está correto
                 isFromPlayer: true
             );
@@ -111,12 +111,17 @@ namespace IsometricGame.Classes
             if (_movingLeft) worldDirection += new Vector2(-1, 1);  // Esquerda (Oeste)
             if (_movingRight) worldDirection += new Vector2(1, -1);  // Direita (Leste)
 
+            // --- ESTA É A PARTE IMPORTANTE ---
             if (worldDirection != Vector2.Zero)
             {
+                // Garante que o comprimento (magnitude) do vetor seja 1
                 worldDirection.Normalize();
             }
+            // --- FIM DA PARTE IMPORTANTE ---
+
+            // Multiplica o vetor normalizado pela velocidade desejada
             WorldVelocity = worldDirection * _speed;
-            base.Update(gameTime, dt);
+            base.Update(gameTime, dt); // Aplica a velocidade à posição
 
             if (_firing && (gameTime.TotalGameTime.TotalSeconds - _lastShot > _shotDelay))
             {

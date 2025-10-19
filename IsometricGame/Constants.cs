@@ -23,6 +23,8 @@ namespace IsometricGame
         public const int MaxLife = 3;
         public const float BaseSpeedMultiplier = 2.0f;
         public static Point IsoTileSize = new Point(36, 16);
+        public static float TileHeightFactor = 8f;
+        public const int MaxZLevel = 10;
         public static Point WorldSize = new Point(100, 100);
         public static Color BackgroundColor = new Color(15, 25, 27, 200);
         public static Color BackgroundColorGame1 = new Color(15, 25, 27, 255);

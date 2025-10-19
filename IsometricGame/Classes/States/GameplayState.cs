@@ -5,6 +5,7 @@ using IsometricGame.Classes.Particles;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+
 namespace IsometricGame.States
 {
     public class GameplayState : GameStateBase
@@ -26,8 +27,10 @@ namespace IsometricGame.States
             _mapGenerator.GenerateMap(); // Isso irá popular GameEngine.AllSprites com tiles
 
             // 2. Adiciona o Player
-            Vector2 playerPos = new Vector2(10, 10); // Posição inicial no meio do "castelo"
-            GameEngine.Player = new Player(playerPos);
+            // --- CORREÇÃO: Passa Vector3(x, y, 0) para o construtor do Player ---
+            Vector3 playerStartPos = new Vector3(10, 10, 0); // Posição inicial no meio do "castelo" com Z=0
+            GameEngine.Player = new Player(playerStartPos);
+            // --- FIM DA CORREÇÃO ---
             GameEngine.AllSprites.Add(GameEngine.Player); // Adiciona o player DEPOIS dos tiles
 
             // 3. Adiciona os Inimigos
@@ -41,13 +44,16 @@ namespace IsometricGame.States
                 float x = GameEngine.Random.Next(-10, 10);
                 float y = GameEngine.Random.Next(-10, 10);
                 if (Math.Abs(x) < 2 && Math.Abs(y) < 2) continue;
-                SpawnEnemy(typeof(Enemy1), new Vector2(x, y));
+                // Passa Vector3 para SpawnEnemy (já estava correto aqui)
+                SpawnEnemy(typeof(Enemy1), new Vector3(x, y, 0));
             }
         }
 
-        private void SpawnEnemy(Type enemyType, Vector2 worldPos)
+        // Aceita Vector3 (já estava correto aqui)
+        private void SpawnEnemy(Type enemyType, Vector3 worldPos)
         {
             EnemyBase enemy = null;
+            // O construtor de Enemy1 aceita Vector3 (verifique se Enemy1.cs foi atualizado)
             if (enemyType == typeof(Enemy1)) enemy = new Enemy1(worldPos);
 
             if (enemy != null)
@@ -65,7 +71,8 @@ namespace IsometricGame.States
             {
                 IsDone = true;
                 NextState = "Pause";
-                return;            }
+                return;
+            }
             if (GameEngine.Player == null)
             {
                 if (!IsDone)
@@ -73,11 +80,19 @@ namespace IsometricGame.States
                     IsDone = true;
                     NextState = "GameOver";
                 }
-                return;            }
+                return;
+            }
             GameEngine.Player.GetInput(input);
             _hitExplosion.Update(effectiveDt);
+            // --- ATENÇÃO: Corrigido loop para evitar problemas de modificação da coleção ---
+            // Usar um loop for reverso ou copiar a lista antes de iterar é mais seguro
+            // se Kill() pudesse remover sprites de AllSprites diretamente, mas
+            // como usamos RemoveAll depois, o loop original está OK.
+            // Mantendo o loop original por enquanto.
             for (int i = GameEngine.AllSprites.Count - 1; i >= 0; i--)
             {
+                // Adicionada verificação para garantir que o índice ainda é válido
+                // caso CleanupSprites() fosse chamado dentro do loop (não é o caso aqui).
                 if (i < GameEngine.AllSprites.Count)
                 {
                     var sprite = GameEngine.AllSprites[i];
@@ -87,6 +102,8 @@ namespace IsometricGame.States
                     }
                 }
             }
+            // --- FIM DA ATENÇÃO ---
+
             HandleCollisions(gameTime);
             CleanupSprites();
             if (GameEngine.Player == null)
@@ -96,7 +113,8 @@ namespace IsometricGame.States
                     IsDone = true;
                     NextState = "GameOver";
                 }
-                return;            }
+                return;
+            }
             if (GameEngine.AllEnemies.Count == 0)
             {
                 GameEngine.Level++;
@@ -109,37 +127,55 @@ namespace IsometricGame.States
             const float enemyCollisionRadius = 0.8f;
             const float bulletCollisionRadius = 0.3f;
             const float playerCollisionRadius = 0.6f;
+
             for (int i = GameEngine.AllEnemies.Count - 1; i >= 0; i--)
             {
                 var enemy = GameEngine.AllEnemies[i];
                 if (enemy.IsRemoved) continue;
+                // --- CORREÇÃO: Extrai XY para distância ---
+                Vector2 enemyPosXY = new Vector2(enemy.WorldPosition.X, enemy.WorldPosition.Y);
+                // --- FIM DA CORREÇÃO ---
 
                 for (int j = GameEngine.PlayerBullets.Count - 1; j >= 0; j--)
                 {
                     var bullet = GameEngine.PlayerBullets[j];
                     if (bullet.IsRemoved) continue;
 
-                    if (Vector2.Distance(bullet.WorldPosition, enemy.WorldPosition) < (enemyCollisionRadius + bulletCollisionRadius))
+                    // --- CORREÇÃO: Extrai XY para distância ---
+                    Vector2 bulletPosXY = new Vector2(bullet.WorldPosition.X, bullet.WorldPosition.Y);
+
+                    if (Vector2.Distance(bulletPosXY, enemyPosXY) < (enemyCollisionRadius + bulletCollisionRadius))
                     {
                         if (enemy.Texture != null)
-                            _hitExplosion.Create(enemy.ScreenPosition.X, enemy.ScreenPosition.Y - enemy.Texture.Height / 2f);
+                            // Passa a ScreenPosition (que já é Vector2)
+                            _hitExplosion.Create(enemy.ScreenPosition.X, enemy.ScreenPosition.Y - enemy.Origin.Y); // Usa Origin.Y em vez de Texture.Height/2
                         enemy.Damage(gameTime);
                         bullet.Kill();
                     }
+                    // --- FIM DA CORREÇÃO ---
                 }
             }
             if (!GameEngine.Player.IsRemoved)
             {
+                // --- CORREÇÃO: Extrai XY para distância ---
+                Vector2 playerPosXY = new Vector2(GameEngine.Player.WorldPosition.X, GameEngine.Player.WorldPosition.Y);
+                // --- FIM DA CORREÇÃO ---
+
                 for (int i = GameEngine.EnemyBullets.Count - 1; i >= 0; i--)
                 {
                     var bullet = GameEngine.EnemyBullets[i];
                     if (bullet.IsRemoved) continue;
 
-                    if (Vector2.Distance(bullet.WorldPosition, GameEngine.Player.WorldPosition) < (playerCollisionRadius + bulletCollisionRadius))
+                    // --- CORREÇÃO: Extrai XY para distância ---
+                    Vector2 bulletPosXY = new Vector2(bullet.WorldPosition.X, bullet.WorldPosition.Y);
+
+                    if (Vector2.Distance(bulletPosXY, playerPosXY) < (playerCollisionRadius + bulletCollisionRadius))
                     {
                         GameEngine.Player.TakeDamage(gameTime);
                         bullet.Kill();
-                        if (GameEngine.Player.IsRemoved) break;                    }
+                        if (GameEngine.Player.IsRemoved) break;
+                    }
+                    // --- FIM DA CORREÇÃO ---
                 }
                 if (!GameEngine.Player.IsRemoved)
                 {
@@ -148,12 +184,17 @@ namespace IsometricGame.States
                         var enemy = GameEngine.AllEnemies[i];
                         if (enemy.IsRemoved) continue;
 
-                        if (Vector2.Distance(enemy.WorldPosition, GameEngine.Player.WorldPosition) < (enemyCollisionRadius + playerCollisionRadius))
+                        // --- CORREÇÃO: Extrai XY para distância ---
+                        Vector2 enemyPosXY = new Vector2(enemy.WorldPosition.X, enemy.WorldPosition.Y);
+
+                        if (Vector2.Distance(enemyPosXY, playerPosXY) < (enemyCollisionRadius + playerCollisionRadius))
                         {
                             GameEngine.Player.TakeDamage(gameTime);
                             enemy.Kill();
                             GameEngine.ScreenShake = 5;
-                            if (GameEngine.Player.IsRemoved) break;                        }
+                            if (GameEngine.Player.IsRemoved) break;
+                        }
+                        // --- FIM DA CORREÇÃO ---
                     }
                 }
             }
@@ -180,9 +221,9 @@ namespace IsometricGame.States
             }
 
             if (GameEngine.Player != null)
-                GameEngine.Player.ExplosionEffect.Draw(spriteBatch);
+                GameEngine.Player.ExplosionEffect.Draw(spriteBatch); // Explosão do player
 
-            _hitExplosion.Draw(spriteBatch);
+            _hitExplosion.Draw(spriteBatch); // Explosão de acerto no inimigo
         }
         public override void Draw(SpriteBatch spriteBatch, GraphicsDevice graphicsDevice)
         {
