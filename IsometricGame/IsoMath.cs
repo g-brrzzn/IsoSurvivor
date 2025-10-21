@@ -1,7 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using System;
-using Microsoft.Xna.Framework; // para MathHelper (se preferir)
-
+using Microsoft.Xna.Framework;
 namespace IsometricGame
 {
     public static class IsoMath
@@ -11,7 +10,6 @@ namespace IsometricGame
             float screenX = (worldPosition.X - worldPosition.Y) * (Constants.IsoTileSize.X / 2f);
             float screenY = (worldPosition.X + worldPosition.Y) * (Constants.IsoTileSize.Y / 2f);
 
-            // Subtrai a altura Z da posição Y na tela — cada unidade Z "levanta" o sprite em pixels
             screenY -= worldPosition.Z * Constants.TileHeightFactor;
 
             return new Vector2(screenX, screenY);
@@ -27,17 +25,11 @@ namespace IsometricGame
             return new Vector2(worldX, worldY);
         }
 
-        // NOTE: esta função agora calcula depth baseado em X+Y (posição no chão).
-        // O ajuste por Z deve ser feito fora (ex: Sprite.Draw subtrai WorldPosition.Z * zBias).
         public static float GetDepth(Vector3 worldPosition)
         {
-            // Usa apenas X+Y como base
-            float maxXY = Math.Max(1f, Constants.WorldSize.X + Constants.WorldSize.Y); // evita divisão por zero
-            float currentXY = worldPosition.X + worldPosition.Y;
+            float maxXY = Math.Max(1f, Constants.WorldSize.X + Constants.WorldSize.Y);            float currentXY = worldPosition.X + worldPosition.Y;
 
-            float normalized = currentXY / maxXY; // 0..1
-            // Inverte: 1.0 => topo/frente, 0.0 => base/fundo (compatível com BackToFront)
-            return MathHelper.Clamp(1f - normalized, 0f, 1f);
+            float normalized = currentXY / maxXY;            return MathHelper.Clamp(1f - normalized, 0f, 1f);
         }
     }
 }

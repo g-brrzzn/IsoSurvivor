@@ -77,25 +77,20 @@ namespace IsometricGame.Classes
                     MathF.Round(floatingScreenPos.Y)
                 );
 
-                // --- INÍCIO DA CORREÇÃO DE FLICKERING ---
                 float baseDepth = IsoMath.GetDepth(WorldPosition);
                 const float zLayerBias = 0.001f;
-                const float entityBias = 0.0001f; // Balas também são entidades
-
+                const float entityBias = 0.0001f;
                 float finalDepth = baseDepth - (WorldPosition.Z * zLayerBias) - entityBias;
                 finalDepth = MathHelper.Clamp(finalDepth, 0f, 1f);
-                // --- FIM DA CORREÇÃO ---
 
                 spriteBatch.Draw(Texture,
                     drawPosition,
                     null,
                     Color.White,
                     0f,
-                    Origin, // A origem (centro) padrão do Sprite.cs está OK para balas.
-                    1.0f,
+                    Origin,                    1.0f,
                     SpriteEffects.None,
-                    finalDepth); // Usa a profundidade final corrigida
-            }
+                    finalDepth);            }
         }
     }
 }

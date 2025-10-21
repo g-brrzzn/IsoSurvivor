@@ -51,11 +51,8 @@ namespace IsometricGame.Classes.Particles
 
             foreach (var p in _particles)
             {
-                // --- INÍCIO DA MODIFICAÇÃO ---
-                // Muda a profundidade (último parâmetro) de 1.0f para 0.0f
                 spriteBatch.Draw(PixelTexture, p.Position, null, p.Color, 0f,
                                  new Vector2(0.5f, 0.5f), 6f, SpriteEffects.None, 0.0f);
-                // --- FIM DA MODIFICAÇÃO ---
             }
         }
     }

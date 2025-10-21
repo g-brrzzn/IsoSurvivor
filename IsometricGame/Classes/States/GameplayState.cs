@@ -1,9 +1,10 @@
-﻿using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
-using IsometricGame.Classes;
+﻿using IsometricGame.Classes;
 using IsometricGame.Classes.Particles;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace IsometricGame.States
@@ -13,6 +14,7 @@ namespace IsometricGame.States
         private Explosion _hitExplosion;
         private Fall _backgroundFall;
         private MapLoader _mapLoader;
+        private Texture2D _cursorTexture;
 
         public override void Start()
         {
@@ -22,49 +24,40 @@ namespace IsometricGame.States
             _hitExplosion = new Explosion();
             _backgroundFall = new Fall(300);
 
-            // --- INÍCIO DA MODIFICAÇÃO ---
-            // 1. Carrega o mapa do arquivo JSON
             _mapLoader = new MapLoader();
-            // Certifique-se que o caminho está correto RELATIVO À PASTA BIN/DEBUG/NET8.0/
-            // Como map1.json está em Content/maps e configurado para copiar, este caminho deve funcionar.
             _mapLoader.LoadMap("Content/maps/map1.json");
-            // --- FIM DA MODIFICAÇÃO ---
 
-
-            // 2. Adiciona o Player em uma posição válida do mapa carregado
-            Vector3 playerStartPos = new Vector3(2, 2, 0); // Exemplo: Posição (2,2) no chão (Z=0)
+            Vector3 playerStartPos = new Vector3(2, 2, 0);
             GameEngine.Player = new Player(playerStartPos);
             GameEngine.AllSprites.Add(GameEngine.Player);
 
-            // 3. Adiciona os Inimigos (talvez ajustar posições baseadas no novo mapa)
-            SpawnEnemies(); // A lógica de spawn pode precisar de ajustes
+            SpawnEnemies();
+
+            _cursorTexture = GameEngine.Assets.Images["cursor"];
+            Game1.Instance.IsMouseVisible = false;
         }
+
+        public override void End()
+        {
+            Game1.Instance.IsMouseVisible = true;        }
 
         private void SpawnEnemies()
         {
-            // Ajuste os limites ou lógica se necessário para o tamanho/layout do mapa
-            for (int i = 0; i < GameEngine.Level * 3; i++) // Reduzi a quantidade inicial
-            {
-                // Gera posições dentro dos limites do mapa (0 a 19, baseado no JSON)
+            for (int i = 0; i < GameEngine.Level * 3; i++)            {
                 float x = GameEngine.Random.Next(0, 20);
                 float y = GameEngine.Random.Next(0, 20);
 
-                // Evita spawnar perto do player ou em locais "ocupados" (simplificado)
                 if (Vector2.Distance(new Vector2(x, y), new Vector2(GameEngine.Player.WorldPosition.X, GameEngine.Player.WorldPosition.Y)) < 5.0f)
                 {
-                    i--; // Tenta de novo
-                    continue;
+                    i--;                    continue;
                 }
 
-                SpawnEnemy(typeof(Enemy1), new Vector3(x, y, 0)); // Spawn no Z=0
-            }
+                SpawnEnemy(typeof(Enemy1), new Vector3(x, y, 0));            }
         }
 
-        // Aceita Vector3 (já estava correto aqui)
         private void SpawnEnemy(Type enemyType, Vector3 worldPos)
         {
             EnemyBase enemy = null;
-            // O construtor de Enemy1 aceita Vector3 (verifique se Enemy1.cs foi atualizado)
             if (enemyType == typeof(Enemy1)) enemy = new Enemy1(worldPos);
 
             if (enemy != null)
@@ -93,17 +86,24 @@ namespace IsometricGame.States
                 }
                 return;
             }
+
+            Vector2 mouseInternalPos = input.InternalMousePosition;
+
+            Vector2 isoScreenPos = Game1.Camera.ScreenToWorld(mouseInternalPos);
+
+            Vector2 targetWorldPos = IsoMath.ScreenToWorld(isoScreenPos);
+
+            Vector2 cursorDrawPos = mouseInternalPos;
+
+            GameEngine.TargetWorldPosition = targetWorldPos;
+            GameEngine.CursorScreenPosition = cursorDrawPos;
+
+            Debug.WriteLine($"MouseInternal: {mouseInternalPos} -> IsoScreen(CamInv): {isoScreenPos} -> TargetWorld(IsoInv): {targetWorldPos} -> CursorDraw: {cursorDrawPos}");
+
             GameEngine.Player.GetInput(input);
             _hitExplosion.Update(effectiveDt);
-            // --- ATENÇÃO: Corrigido loop para evitar problemas de modificação da coleção ---
-            // Usar um loop for reverso ou copiar a lista antes de iterar é mais seguro
-            // se Kill() pudesse remover sprites de AllSprites diretamente, mas
-            // como usamos RemoveAll depois, o loop original está OK.
-            // Mantendo o loop original por enquanto.
             for (int i = GameEngine.AllSprites.Count - 1; i >= 0; i--)
             {
-                // Adicionada verificação para garantir que o índice ainda é válido
-                // caso CleanupSprites() fosse chamado dentro do loop (não é o caso aqui).
                 if (i < GameEngine.AllSprites.Count)
                 {
                     var sprite = GameEngine.AllSprites[i];
@@ -113,7 +113,6 @@ namespace IsometricGame.States
                     }
                 }
             }
-            // --- FIM DA ATENÇÃO ---
 
             HandleCollisions(gameTime);
             CleanupSprites();
@@ -143,41 +142,32 @@ namespace IsometricGame.States
             {
                 var enemy = GameEngine.AllEnemies[i];
                 if (enemy.IsRemoved) continue;
-                // --- CORREÇÃO: Extrai XY para distância ---
                 Vector2 enemyPosXY = new Vector2(enemy.WorldPosition.X, enemy.WorldPosition.Y);
-                // --- FIM DA CORREÇÃO ---
 
                 for (int j = GameEngine.PlayerBullets.Count - 1; j >= 0; j--)
                 {
                     var bullet = GameEngine.PlayerBullets[j];
                     if (bullet.IsRemoved) continue;
 
-                    // --- CORREÇÃO: Extrai XY para distância ---
                     Vector2 bulletPosXY = new Vector2(bullet.WorldPosition.X, bullet.WorldPosition.Y);
 
                     if (Vector2.Distance(bulletPosXY, enemyPosXY) < (enemyCollisionRadius + bulletCollisionRadius))
                     {
                         if (enemy.Texture != null)
-                            // Passa a ScreenPosition (que já é Vector2)
-                            _hitExplosion.Create(enemy.ScreenPosition.X, enemy.ScreenPosition.Y - enemy.Origin.Y); // Usa Origin.Y em vez de Texture.Height/2
-                        enemy.Damage(gameTime);
+                            _hitExplosion.Create(enemy.ScreenPosition.X, enemy.ScreenPosition.Y - enemy.Origin.Y);                        enemy.Damage(gameTime);
                         bullet.Kill();
                     }
-                    // --- FIM DA CORREÇÃO ---
                 }
             }
             if (!GameEngine.Player.IsRemoved)
             {
-                // --- CORREÇÃO: Extrai XY para distância ---
                 Vector2 playerPosXY = new Vector2(GameEngine.Player.WorldPosition.X, GameEngine.Player.WorldPosition.Y);
-                // --- FIM DA CORREÇÃO ---
 
                 for (int i = GameEngine.EnemyBullets.Count - 1; i >= 0; i--)
                 {
                     var bullet = GameEngine.EnemyBullets[i];
                     if (bullet.IsRemoved) continue;
 
-                    // --- CORREÇÃO: Extrai XY para distância ---
                     Vector2 bulletPosXY = new Vector2(bullet.WorldPosition.X, bullet.WorldPosition.Y);
 
                     if (Vector2.Distance(bulletPosXY, playerPosXY) < (playerCollisionRadius + bulletCollisionRadius))
@@ -186,7 +176,6 @@ namespace IsometricGame.States
                         bullet.Kill();
                         if (GameEngine.Player.IsRemoved) break;
                     }
-                    // --- FIM DA CORREÇÃO ---
                 }
                 if (!GameEngine.Player.IsRemoved)
                 {
@@ -195,7 +184,6 @@ namespace IsometricGame.States
                         var enemy = GameEngine.AllEnemies[i];
                         if (enemy.IsRemoved) continue;
 
-                        // --- CORREÇÃO: Extrai XY para distância ---
                         Vector2 enemyPosXY = new Vector2(enemy.WorldPosition.X, enemy.WorldPosition.Y);
 
                         if (Vector2.Distance(enemyPosXY, playerPosXY) < (enemyCollisionRadius + playerCollisionRadius))
@@ -205,7 +193,6 @@ namespace IsometricGame.States
                             GameEngine.ScreenShake = 5;
                             if (GameEngine.Player.IsRemoved) break;
                         }
-                        // --- FIM DA CORREÇÃO ---
                     }
                 }
             }
@@ -232,26 +219,37 @@ namespace IsometricGame.States
             }
 
             if (GameEngine.Player != null)
-                GameEngine.Player.ExplosionEffect.Draw(spriteBatch); // Explosão do player
-
-            _hitExplosion.Draw(spriteBatch); // Explosão de acerto no inimigo
+                GameEngine.Player.ExplosionEffect.Draw(spriteBatch);
+            _hitExplosion.Draw(spriteBatch);
         }
         public override void Draw(SpriteBatch spriteBatch, GraphicsDevice graphicsDevice)
         {
-            // O código de desenhar sprites foi movido para DrawWorld()
 
             var font = GameEngine.Assets.Fonts["captain_32"];
 
-            // Usa coordenadas de tela
             Vector2 levelPos = new Vector2(Constants.InternalResolution.X - 100, 30);
             Vector2 lifePos = new Vector2(Constants.InternalResolution.X - 100, 60);
 
-            // Usa a nova função DrawTextScreen
             DrawUtils.DrawTextScreen(spriteBatch, $"Level {GameEngine.Level}", font, levelPos, Color.White, 1.0f);
             if (GameEngine.Player != null)
                 DrawUtils.DrawTextScreen(spriteBatch, $"Life  {GameEngine.Player.Life}", font, lifePos, Color.White, 1.0f);
             else
                 DrawUtils.DrawTextScreen(spriteBatch, "Life  0", font, lifePos, Color.Red, 1.0f);
+
+            if (_cursorTexture != null)
+            {
+                Vector2 cursorPos = GameEngine.CursorScreenPosition;
+                Vector2 origin = new Vector2(_cursorTexture.Width / 2f, _cursorTexture.Height / 2f);
+
+                spriteBatch.Draw(
+                    _cursorTexture,
+                    cursorPos,                    null,
+                    Color.White,
+                    0f,
+                    origin,
+                    1.0f,                    SpriteEffects.None,
+                    0.0f                );
+            }
         }
     }
 }

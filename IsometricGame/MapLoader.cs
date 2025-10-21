@@ -27,7 +27,6 @@ namespace IsometricGame
                 return;
             }
 
-            // Mapeia ID para a entrada COMPLETA (para obtermos o assetName)
             Dictionary<int, TileMappingEntry> tileLookup = mapData.TileMapping
                                                               .ToDictionary(entry => entry.Id, entry => entry);
 
@@ -48,16 +47,12 @@ namespace IsometricGame
                             Vector3 worldPos = new Vector3(x, y, layer.ZLevel);
                             var tileSprite = new Sprite(texture, worldPos);
 
-                            // --- INÍCIO DA LÓGICA DE COLISÃO CORRETA ---
                             bool isSolid = false;
                             if (layer.ZLevel > 0)
                             {
-                                // REGRA 1: Todo tile acima do chão (Z > 0) é sólido.
                                 isSolid = true;
                             }
-                            else // ZLevel é 0
-                            {
-                                // REGRA 2: No chão, APENAS água é sólida.
+                            else                            {
                                 if (tileInfo.AssetName.Contains("water_"))
                                 {
                                     isSolid = true;
@@ -66,10 +61,8 @@ namespace IsometricGame
 
                             if (isSolid)
                             {
-                                // Registra a posição do tile sólido
                                 GameEngine.SolidTiles[worldPos] = tileSprite;
                             }
-                            // --- FIM DA LÓGICA DE COLISÃO ---
 
                             GameEngine.AllSprites.Add(tileSprite);
                         }

@@ -13,7 +13,6 @@ namespace IsometricGame.States
             spriteBatch.DrawString(font, text, position, color, 0, origin, 1.0f, SpriteEffects.None, depth);
         }
 
-        // Nova função para desenhar texto em coordenadas de TELA
         public static void DrawTextScreen(SpriteBatch spriteBatch, string text, SpriteFont font, Vector2 position, Color color, float depth = 1.0f)
         {
             Vector2 origin = font.MeasureString(text) / 2f;
@@ -41,19 +40,15 @@ namespace IsometricGame.States
             SpriteFont fontTitle = GameEngine.Assets.Fonts["captain_80"];
             SpriteFont fontOption = GameEngine.Assets.Fonts["captain_42"];
 
-            // Não converte mais para "mundo", usa o centro da tela interna
             Vector2 center = new Vector2(Constants.InternalResolution.X / 2f, Constants.InternalResolution.Y / 2f);
 
             if (!string.IsNullOrEmpty(title))
             {
-                // Usa coordenadas de tela
                 Vector2 titlePos = new Vector2(Constants.InternalResolution.X / 2f, Constants.InternalResolution.Y / 2f - 150);
-                // Usa a nova função DrawTextScreen
                 DrawTextScreen(spriteBatch, title, fontTitle, titlePos, Constants.TitleYellow1, 1.0f);
             }
 
             float yGap = 50f;
-            // Usa o centro da tela
             Vector2 startPosScreen = new Vector2(center.X, center.Y - (options.Count / 2f * yGap) + 50f);
 
             for (int i = 0; i < options.Count; i++)
@@ -61,22 +56,18 @@ namespace IsometricGame.States
                 Color color = (i == selected) ? Constants.GameColor : Color.White;
                 Vector2 posScreen = new Vector2(startPosScreen.X, startPosScreen.Y + i * yGap);
 
-                // Usa a nova função DrawTextScreen
                 DrawTextScreen(spriteBatch, options[i], fontOption, posScreen, color, 1.0f);
 
                 if (i == selected)
                 {
                     float textWidth = fontOption.MeasureString(options[i]).X / 2f;
-                    // Usa coordenadas de tela
                     Vector2 leftMarkerPos = new Vector2(posScreen.X - textWidth - 20, posScreen.Y);
                     Vector2 rightMarkerPos = new Vector2(posScreen.X + textWidth + 20, posScreen.Y);
 
-                    // Usa a nova função DrawTextScreen
                     DrawTextScreen(spriteBatch, "|", fontOption, leftMarkerPos, color, 1.0f);
                     DrawTextScreen(spriteBatch, "|", fontOption, rightMarkerPos, color, 1.0f);
                 }
             }
-            // --- FIM DA MODIFICAÇÃO ---
         }
     }
 }

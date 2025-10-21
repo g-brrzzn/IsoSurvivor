@@ -14,6 +14,8 @@ namespace IsometricGame.States
             NextState = string.Empty;
         }
 
+        public virtual void End() { }
+
         public abstract void Update(GameTime gameTime, InputManager input);
 
         public abstract void Draw(SpriteBatch spriteBatch, GraphicsDevice graphicsDevice);

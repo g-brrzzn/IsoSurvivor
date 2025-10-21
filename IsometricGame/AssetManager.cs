@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Content;
 using System.Collections.Generic;
 using System;
 using Microsoft.Xna.Framework;
+
 namespace IsometricGame
 {
     public class AssetManager
@@ -13,6 +14,7 @@ namespace IsometricGame
         public Dictionary<string, SoundEffect> Sounds { get; private set; } = new Dictionary<string, SoundEffect>();
         public Dictionary<string, SpriteFont> Fonts { get; private set; } = new Dictionary<string, SpriteFont>();
         public Song Music { get; private set; }
+
         private Texture2D CreateRectangleTexture(GraphicsDevice device, int width, int height, Color color)
         {
             var texture = new Texture2D(device, width, height);
@@ -24,6 +26,7 @@ namespace IsometricGame
             texture.SetData(data);
             return texture;
         }
+
         private Texture2D CreateDiamondTexture(GraphicsDevice device, int width, int height, Color color)
         {
             var texture = new Texture2D(device, width, height);
@@ -51,6 +54,35 @@ namespace IsometricGame
             return texture;
         }
 
+        private Texture2D CreateCrosshairTexture(GraphicsDevice device, int size, int thickness, Color color)
+        {
+            var texture = new Texture2D(device, size, size);
+            Color[] data = new Color[size * size];
+            int center = size / 2;
+            int halfThickness = thickness / 2;
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    if (x >= center - halfThickness && x <= center + halfThickness)
+                    {
+                        data[y * size + x] = color;
+                    }
+                    else if (y >= center - halfThickness && y <= center + halfThickness)
+                    {
+                        data[y * size + x] = color;
+                    }
+                    else
+                    {
+                        data[y * size + x] = Color.Transparent;
+                    }
+                }
+            }
+            texture.SetData(data);
+            return texture;
+        }
+
         public void LoadContent(ContentManager content, GraphicsDevice graphicsDevice)
         {
             var playerSprite = CreateDiamondTexture(graphicsDevice, 16, 32, Constants.PlayerColorGreen);
@@ -69,32 +101,22 @@ namespace IsometricGame
             Images["enemy1_idle_north"] = enemySprite;
             Images["enemy1_idle_east"] = enemySprite;
 
-            // --- CARREGAMENTO DE TILES (LIMPO) ---
-            // (Certifique-se que todos estes arquivos existem no seu Content.mgcb)
-
-            // Grama
             Images["tile_grass1"] = content.Load<Texture2D>("sprites/tiles/grass_tile1");
             Images["tile_grass2"] = content.Load<Texture2D>("sprites/tiles/grass_tile2");
             Images["tile_grass3"] = content.Load<Texture2D>("sprites/tiles/grass_tile3");
-
-            // Terra
             Images["tile_dirt1"] = content.Load<Texture2D>("sprites/tiles/dirt_tile1");
             Images["tile_dirt2"] = content.Load<Texture2D>("sprites/tiles/dirt_tile2");
             Images["tile_dirt3"] = content.Load<Texture2D>("sprites/tiles/dirt_tile3");
-
-            // Água
             Images["water_tile1"] = content.Load<Texture2D>("sprites/tiles/water_tile1");
             Images["water_tile2"] = content.Load<Texture2D>("sprites/tiles/water_tile2");
             Images["water_tile3"] = content.Load<Texture2D>("sprites/tiles/water_tile3");
-
-            // Rocha
             Images["rock_tile1"] = content.Load<Texture2D>("sprites/tiles/rock_tile1");
             Images["rock_tile2"] = content.Load<Texture2D>("sprites/tiles/rock_tile2");
             Images["rock_tile3"] = content.Load<Texture2D>("sprites/tiles/rock_tile3");
-
-            // Parede (Mapeado para rock_tile3 conforme seu código anterior)
             Images["tile_wall"] = content.Load<Texture2D>("sprites/tiles/rock_tile3");
-            // --- FIM DO CARREGAMENTO DE TILES ---
+
+            Images["cursor"] = CreateCrosshairTexture(graphicsDevice, 16, 2, Color.White);
+
 
             Sounds["shoot"] = content.Load<SoundEffect>("sound/shoot");
             Sounds["hit"] = content.Load<SoundEffect>("sound/hit");

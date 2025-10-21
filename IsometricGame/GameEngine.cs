@@ -9,6 +9,9 @@ namespace IsometricGame
     {
         public static Player Player { get; set; }
 
+        public static Vector2 TargetWorldPosition { get; set; }
+        public static Vector2 CursorScreenPosition { get; set; }
+
         public static List<Sprite> AllSprites { get; private set; }
         public static List<EnemyBase> AllEnemies { get; private set; }
         public static List<Bullet> PlayerBullets { get; private set; }
@@ -33,6 +36,9 @@ namespace IsometricGame
             Random = new Random();
             Level = 1;
             ScreenShake = 0;
+            Player = null;
+            TargetWorldPosition = Vector2.Zero;            CursorScreenPosition = Vector2.Zero;            Level = 1;
+            ScreenShake = 0;
         }
 
         public static void ResetGame()
@@ -43,7 +49,7 @@ namespace IsometricGame
             EnemyBullets.Clear();
             SolidTiles.Clear();
             Player = null;
-            Level = 1;
+            TargetWorldPosition = Vector2.Zero;            CursorScreenPosition = Vector2.Zero;            Level = 1;
         }
     }
 }

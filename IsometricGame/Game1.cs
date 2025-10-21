@@ -27,11 +27,13 @@ namespace IsometricGame
         private double _frameCounter;
         private double _frameTimer;
         private string _fpsDisplay = "";
+        public static Game1 Instance { get; private set; }
         public static Camera Camera { get; private set; }
         public static Fall MenuBackgroundFall { get; private set; }
 
         public Game1()
         {
+            Instance = this;
             _graphics = new GraphicsDeviceManager(this);
             _graphicsManagerInstance = _graphics;
             Content.RootDirectory = "Content";
@@ -150,11 +152,15 @@ namespace IsometricGame
                 return;
             }
             MenuBackgroundFall.Update(dt: (float)gameTime.ElapsedGameTime.TotalSeconds);
-
+            GameStateBase previousState = _currentState;
             _currentState.Update(gameTime, InputManagerInstance);
 
             if (_currentState.IsDone)
             {
+                if (previousState is GameplayState gameplayState)
+                {
+                    gameplayState.End();
+                }
                 if (!string.IsNullOrEmpty(_currentState.NextState))
                 {
                     if (_currentState.NextState == "Exit") { Exit(); return; }

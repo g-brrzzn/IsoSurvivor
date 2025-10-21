@@ -19,27 +19,19 @@ namespace IsometricGame
             Zoom = 1.0f;
             Position = Vector2.Zero;
 
-            // --- ADIÇÃO 1 ---
-            // Garante que a matriz seja calculada na inicialização
             UpdateMatrix();
         }
 
-        // --- ADIÇÃO 2 ---
-        // Novo método para definir o zoom e atualizar a matriz
         public void SetZoom(float zoom)
         {
-            // Math.Max para evitar zoom negativo ou zero
             Zoom = Math.Max(zoom, 0.1f);
             UpdateMatrix();
         }
 
         private void UpdateMatrix()
         {
-            // --- MODIFICAÇÃO 3 ---
-            // Adicionamos Matrix.CreateScale(Zoom) à transformação
             Transform = Matrix.CreateTranslation(-Position.X, -Position.Y, 0) *
-                        Matrix.CreateScale(Zoom, Zoom, 1f) * // <-- LINHA ADICIONADA
-                        Matrix.CreateTranslation(_viewportWidth / 2, _viewportHeight / 2, 0);
+                        Matrix.CreateScale(Zoom, Zoom, 1f) *                        Matrix.CreateTranslation(_viewportWidth / 2, _viewportHeight / 2, 0);
         }
 
         public void Follow(Vector2 targetPosition)

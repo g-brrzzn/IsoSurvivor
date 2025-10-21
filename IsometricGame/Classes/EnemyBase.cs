@@ -4,8 +4,6 @@ using Microsoft.Xna.Framework.Audio;
 using IsometricGame.Classes.Particles;
 using System.Collections.Generic;
 using System;
-
-// --- ADIÇÃO 1: Importar o namespace do Pathfinder ---
 using IsometricGame.Pathfinding;
 
 namespace IsometricGame.Classes
@@ -27,14 +25,10 @@ namespace IsometricGame.Classes
         private const float _collisionRadius = 0.35f;
         private bool _isHit = false;
 
-        // --- ADIÇÃO 2: Variáveis para controlar o Pathfinding ---
         protected List<Vector3> _currentPath;
         protected float _pathTimer = 0f;
-        // Recalcula o caminho a cada 1 segundo (ou se o caminho acabar)
         protected const float _pathRefreshTime = 1.0f;
-        // Quão perto o inimigo precisa chegar de um nó do caminho para avançar para o próximo
         protected const float _nodeReachedThreshold = 0.5f;
-        // --- FIM DA ADIÇÃO 2 ---
 
         public EnemyBase(Vector3 worldPos, List<string> spriteKeys) : base(null, worldPos)
         {
@@ -45,7 +39,6 @@ namespace IsometricGame.Classes
             {
                 UpdateTexture(_sprites[_currentDirection]);
                 if (Texture != null)
-                    // IMPORTANTE: A Origem (pés) é vital para a renderização correta
                     Origin = new Vector2(Texture.Width / 2f, Texture.Height);
             }
 
@@ -118,8 +111,6 @@ namespace IsometricGame.Classes
             }
         }
 
-        // --- MODIFICAÇÃO 3: Lógica de Movimento (Move) ---
-        // A lógica de "ir reto" foi substituída pela lógica de "seguir o caminho"
         public virtual void Move(GameTime gameTime, float dt)
         {
             if (GameEngine.Player == null || GameEngine.Player.IsRemoved)
@@ -131,16 +122,13 @@ namespace IsometricGame.Classes
 
             _pathTimer -= dt;
 
-            // 1. Hora de recalcular o caminho?
             if (_pathTimer <= 0f || _currentPath == null || _currentPath.Count == 0)
             {
                 _pathTimer = _pathRefreshTime;
 
-                // Arredonda as posições para o grid do pathfinder
                 Vector3 start = new Vector3(MathF.Round(WorldPosition.X), MathF.Round(WorldPosition.Y), WorldPosition.Z);
                 Vector3 target = new Vector3(MathF.Round(GameEngine.Player.WorldPosition.X), MathF.Round(GameEngine.Player.WorldPosition.Y), GameEngine.Player.WorldPosition.Z);
 
-                // Evita tentar encontrar um caminho para dentro de um tile sólido
                 if (GameEngine.SolidTiles.ContainsKey(target))
                 {
                     _currentPath = null;
@@ -153,7 +141,6 @@ namespace IsometricGame.Classes
 
             Vector2 direction = Vector2.Zero;
 
-            // 2. Segue o caminho
             if (_currentPath != null && _currentPath.Count > 0)
             {
                 Vector3 targetNode = _currentPath[0];
@@ -162,17 +149,13 @@ namespace IsometricGame.Classes
 
                 float distance = Vector2.Distance(currentPosXY, targetNodeXY);
 
-                // 3. Chegou perto o suficiente do nó?
                 if (distance < _nodeReachedThreshold)
                 {
-                    _currentPath.RemoveAt(0); // Avança para o próximo nó
-                    if (_currentPath.Count == 0)
+                    _currentPath.RemoveAt(0);                    if (_currentPath.Count == 0)
                     {
-                        WorldVelocity = Vector2.Zero; // Chegou ao fim do caminho
-                    }
+                        WorldVelocity = Vector2.Zero;                    }
                 }
 
-                // 4. Move-se em direção ao nó atual
                 if (_currentPath.Count > 0)
                 {
                     direction = targetNodeXY - currentPosXY;
@@ -185,11 +168,9 @@ namespace IsometricGame.Classes
             }
             else
             {
-                // Sem caminho (jogador inacessível ou já chegou)
                 WorldVelocity = Vector2.Zero;
             }
 
-            // --- Fim da Lógica de Pathfinding ---
 
             if (Math.Abs(direction.X) > Math.Abs(direction.Y))
             {
@@ -208,44 +189,30 @@ namespace IsometricGame.Classes
             }
 
         }
-        // --- FIM DA MODIFICAÇÃO 3 ---
 
         public override void Update(GameTime gameTime, float dt)
         {
-            Move(gameTime, dt); // Define a WorldVelocity desejada (agora via A*)
-            Shoot();
+            Move(gameTime, dt);            Shoot();
 
-            // --- INÍCIO DA LÓGICA DE COLISÃO AABB vs GRID ---
-            // (Esta seção permanece IDÊNTICA. Ela é o "corpo" do inimigo
-            // que impede o pathfinding de atravessar paredes)
 
             Vector2 movement = WorldVelocity * dt;
 
-            // 1. CHECA EIXO X
             Vector3 nextPos = WorldPosition + new Vector3(movement.X, 0, 0);
-            if (IsCollidingAt(nextPos)) // Usa o novo método auxiliar
-            {
+            if (IsCollidingAt(nextPos))            {
                 movement.X = 0;
             }
 
-            // 2. CHECA EIXO Y
             nextPos = WorldPosition + new Vector3(0, movement.Y, 0);
-            if (IsCollidingAt(nextPos)) // Usa o novo método auxiliar
-            {
+            if (IsCollidingAt(nextPos))            {
                 movement.Y = 0;
             }
 
-            // 3. Aplica movimento (corrigido)
-            // (NÃO usamos mais base.Update() para movimento)
             WorldPosition += new Vector3(movement.X, movement.Y, 0);
 
-            // 4. Atualiza Posição da Tela
             UpdateScreenPosition();
 
-            // 5. Atualiza Velocidade (para referência futura, se necessário)
             WorldVelocity = (dt > 0) ? new Vector2(movement.X / dt, movement.Y / dt) : Vector2.Zero;
 
-            // --- FIM DA LÓGICA DE COLISÃO ---
 
             _explosion.Update(dt);
             if (_isHit && gameTime.TotalGameTime.TotalMilliseconds - _lastHit > _hitFlashDuration)
@@ -253,10 +220,8 @@ namespace IsometricGame.Classes
                 _isHit = false;
             }
 
-            // base.Update() foi removido
         }
 
-        // --- MÉTODO AUXILIAR DE COLISÃO (NOVO) ---
         private bool IsCollidingAt(Vector3 futurePosition)
         {
             float baseZ = futurePosition.Z;
@@ -282,7 +247,6 @@ namespace IsometricGame.Classes
             return false;
         }
 
-        // --- AJUSTE NO DRAW PARA RENDERIZAR NA FRENTE ---
         public override void Draw(SpriteBatch spriteBatch)
         {
             Color tint = _isHit ? Color.Red : Color.White;
@@ -293,25 +257,21 @@ namespace IsometricGame.Classes
                   MathF.Round(ScreenPosition.Y)
                 );
 
-                // --- INÍCIO DA CORREÇÃO DE FLICKERING ---
                 float baseDepth = IsoMath.GetDepth(WorldPosition);
                 const float zLayerBias = 0.001f;
                 const float entityBias = 0.0001f;
 
                 float finalDepth = baseDepth - (WorldPosition.Z * zLayerBias) - entityBias;
                 finalDepth = MathHelper.Clamp(finalDepth, 0f, 1f);
-                // --- FIM DA CORREÇÃO ---
 
                 spriteBatch.Draw(Texture,
           drawPosition,
           null,
           tint,
           0f,
-          Origin, // A origem nos "pés" (definida no construtor) está CORRETA.
-                    1.0f,
+          Origin,                    1.0f,
           SpriteEffects.None,
-          finalDepth); // Usa a profundidade final corrigida
-            }
+          finalDepth);            }
 
             _explosion.Draw(spriteBatch);
         }
