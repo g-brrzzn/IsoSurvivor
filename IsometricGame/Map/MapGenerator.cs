@@ -2,7 +2,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace IsometricGame
+namespace IsometricGame.Map
 {
     public class MapGenerator
     {

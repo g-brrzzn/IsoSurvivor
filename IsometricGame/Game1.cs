@@ -1,6 +1,7 @@
 ﻿using IsometricGame.Classes;
 using IsometricGame.Classes.Particles;
 using IsometricGame.States;
+using IsometricGame.States.Editor;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -110,6 +111,7 @@ namespace IsometricGame
             _states.Add("Options", new OptionsState());
             _states.Add("ExitConfirm", new ExitConfirmState());
             _states.Add("Exit", new ExitState());
+            _states.Add("Editor", new EditorState()); // <-- ADICIONA O NOVO ESTADO
 
             _currentState = _states["Menu"];
             _currentState.Start();
@@ -186,48 +188,73 @@ namespace IsometricGame
         }
         protected override void Draw(GameTime gameTime)
         {
+            // --- Desenha o Jogo no RenderTarget ---
             GraphicsDevice.SetRenderTarget(_renderTarget);
             GraphicsDevice.Clear(Constants.BackgroundColor);
 
+            // Desenha fundo (Fall nos menus)
             _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp);
-
-            if (_currentState is MenuState || _currentState is OptionsState || _currentState is GameOverState)
+            if (_currentState is MenuState || _currentState is OptionsState || _currentState is GameOverState || _currentState is EditorState) // Adicionado EditorState aqui também? (Opcional)
             {
-                Color fallColor = _currentState is GameOverState ? Constants.GameColor : Color.LightGray;
+                Color fallColor = Color.DarkSlateGray; // Cor diferente para o editor?
+                if (_currentState is GameOverState) fallColor = Constants.GameColor;
+                else if (!(_currentState is EditorState)) fallColor = Color.LightGray;
+
                 MenuBackgroundFall.Draw(_spriteBatch, fallColor);
             }
-
             _spriteBatch.End();
 
 
+            // --- Desenha o mundo do jogo OU editor (com câmera e profundidade) ---
             _spriteBatch.Begin(SpriteSortMode.BackToFront,
-                                BlendState.AlphaBlend,
-                                SamplerState.PointClamp,
-                                null, null, null,
-                                Camera.GetViewMatrix());
+                               BlendState.AlphaBlend,
+                               SamplerState.PointClamp,
+                               null, null, null,
+                               Camera.GetViewMatrix()); // <-- Com Câmera
 
-            if (_currentState is GameplayState)
+            // Chama DrawWorld do estado apropriado
+            if (_currentState is GameplayState gameplayStateWorld)
             {
-                ((GameplayState)_currentState).DrawWorld(_spriteBatch);
+                gameplayStateWorld.DrawWorld(_spriteBatch);
             }
+            // --- ADICIONADO ELSE IF ---
+            else if (_currentState is EditorState editorStateWorld) // Verifica se é o EditorState
+            {
+                editorStateWorld.DrawWorld(_spriteBatch); // Chama o DrawWorld do Editor
+            }
+            // --- FIM ADIÇÃO ---
 
             _spriteBatch.End();
 
-            _spriteBatch.Begin(SpriteSortMode.Deferred,
-                                BlendState.AlphaBlend,
-                                SamplerState.PointClamp);
 
-            _currentState.Draw(_spriteBatch, GraphicsDevice);
+            // --- Desenha a UI específica do estado atual (sem câmera) ---
+            _spriteBatch.Begin(SpriteSortMode.Deferred, // Ou BackToFront se precisar de ordem na UI
+                              BlendState.AlphaBlend,
+                              SamplerState.PointClamp); // <-- Sem Câmera
 
+            _currentState.Draw(_spriteBatch, GraphicsDevice); // Desenha a UI do estado atual (vida, menu, cursor, UI do editor, etc.)
+
+            // Desenha FPS
             if (Constants.ShowFPS && !string.IsNullOrEmpty(_fpsDisplay))
             {
-                DrawUtils.DrawTextScreen(_spriteBatch, _fpsDisplay, GameEngine.Assets.Fonts["captain_32"],
-                    new Vector2(10, 10), Color.White, 1.0f);
+                if (_frameTimer >= 1.0f) { /* ... cálculo fps ... */ }
+                DrawUtils.DrawTextScreen(_spriteBatch, _fpsDisplay, GameEngine.Assets.Fonts["captain_32"], new Vector2(15, 10), Color.White, 0.0f);
             }
 
-            _spriteBatch.End();
+            _spriteBatch.End(); // UI End
 
 
+            // Desenha o Overlay de Transição (SEMPRE POR CIMA, se GameplayState)
+            if (_currentState is GameplayState gameplayStateOverlay)
+            {
+                _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp);
+                gameplayStateOverlay.DrawTransitionOverlay(_spriteBatch, GraphicsDevice);
+                _spriteBatch.End();
+            }
+
+
+            // --- Desenha o RenderTarget na Tela ---
+            // ... (código existente para desenhar _renderTarget na tela com screen shake) ...
             GraphicsDevice.SetRenderTarget(null);
             GraphicsDevice.Clear(Color.Black);
 
@@ -237,6 +264,7 @@ namespace IsometricGame
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
             _spriteBatch.Draw(_renderTarget, destination, Color.White);
             _spriteBatch.End();
+
 
             base.Draw(gameTime);
         }

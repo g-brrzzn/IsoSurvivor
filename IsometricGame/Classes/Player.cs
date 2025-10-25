@@ -102,7 +102,9 @@ namespace IsometricGame.Classes
             if (worldAimDirection.LengthSquared() > 0)
             {
                 Vector2 screenAim = new Vector2(
-                    worldAimDirection.X - worldAimDirection.Y,                    worldAimDirection.X + worldAimDirection.Y                );
+                    worldAimDirection.X - worldAimDirection.Y,                    
+                    worldAimDirection.X + worldAimDirection.Y                
+                    );
 
                 if (Math.Abs(screenAim.X) > Math.Abs(screenAim.Y))
                 {
@@ -130,7 +132,8 @@ namespace IsometricGame.Classes
             Vector2 worldAimDirection = GetAimDirection(Game1.InputManagerInstance);
 
             ExplosionEffect.Update(dt);
-            Animate(worldAimDirection);            _isInvincible = totalMilliseconds - _lastHit < _invincibilityDuration;
+            Animate(worldAimDirection);            
+            _isInvincible = totalMilliseconds - _lastHit < _invincibilityDuration;
 
             Vector2 worldDirection = Vector2.Zero;
             if (_movingUp) worldDirection += new Vector2(-1, -1);

@@ -7,7 +7,7 @@ namespace IsometricGame.States
 {
     public class MenuState : GameStateBase
     {
-        private List<string> _options = new List<string> { "START", "OPTIONS", "EXIT" };
+        private List<string> _options = new List<string> { "START", "EDITOR", "OPTIONS", "EXIT" }; // <-- Opção Adicionada
         private int _selected = 0;
         private float _titleOffsetY;
 
@@ -21,32 +21,50 @@ namespace IsometricGame.States
         {
             _titleOffsetY = (float)(Math.Sin(gameTime.TotalGameTime.TotalSeconds * 2 * Math.PI) * (Constants.InternalResolution.Y * 0.04));
 
+            // Lógica de navegação UP/DOWN permanece igual, pois _options.Count foi atualizado
+
             if (input.IsKeyPressed("DOWN"))
             {
-                Debug.WriteLine($"MenuState detected: DOWN");
                 _selected = (_selected + 1) % _options.Count;
-                GameEngine.Assets.Sounds["menu_select"]?.Play();            }
+                GameEngine.Assets.Sounds["menu_select"]?.Play();
+            }
             if (input.IsKeyPressed("UP"))
             {
-                Debug.WriteLine($"MenuState detected: UP");
                 _selected = (_selected - 1 + _options.Count) % _options.Count;
                 GameEngine.Assets.Sounds["menu_select"]?.Play();
             }
 
+            // --- Lógica de Seleção (START) MODIFICADA ---
             if (input.IsKeyPressed("START"))
             {
-                Debug.WriteLine($"MenuState detected: START");
                 GameEngine.Assets.Sounds["menu_confirm"]?.Play();
                 IsDone = true;
-                if (_selected == 0) NextState = "Game";
-                else if (_selected == 1) NextState = "Options";
-                else if (_selected == 2) NextState = "Exit";
+
+                // Mapeia a opção selecionada para o estado correspondente
+                switch (_options[_selected])
+                {
+                    case "START":
+                        NextState = "Game";
+                        break;
+                    case "EDITOR": // <-- Nova opção
+                        NextState = "Editor";
+                        break;
+                    case "OPTIONS":
+                        NextState = "Options";
+                        break;
+                    case "EXIT":
+                        NextState = "Exit"; // Ou "ExitConfirm" se preferir
+                        break;
+                    default:
+                        NextState = "Menu"; // Fallback
+                        break;
+                }
             }
             if (input.IsKeyPressed("ESC"))
             {
-                Debug.WriteLine($"MenuState detected: ESC (mapped to Exit)");
                 IsDone = true;
-                NextState = "Exit";            }
+                NextState = "Exit"; // Ou "ExitConfirm"
+            }
         }
         public override void Draw(SpriteBatch spriteBatch, GraphicsDevice graphicsDevice)
         {

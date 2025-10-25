@@ -37,7 +37,7 @@ namespace IsometricGame.Classes
         }
 
 
-        protected void UpdateScreenPosition()
+        public void UpdateScreenPosition() // Changed from protected to public
         {
             ScreenPosition = IsoMath.WorldToScreen(WorldPosition);
         }
