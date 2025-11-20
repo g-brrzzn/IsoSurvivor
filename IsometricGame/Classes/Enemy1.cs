@@ -12,10 +12,11 @@ namespace IsometricGame.Classes
             : base(worldPos, new List<string> {
                 "enemy1_idle_south",
                 "enemy1_idle_west",
-                "enemy1_idle_north",                "enemy1_idle_east"            })
+                "enemy1_idle_north",
+                "enemy1_idle_east"
+            })
         {
-            Life = 1;
-            Weight = 1;
+            Life = 2;            Weight = 1;
             Speed = 3.0f;
         }
     }

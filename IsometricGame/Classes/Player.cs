@@ -22,8 +22,12 @@ namespace IsometricGame.Classes
         private float _attackRange = 8.0f;
         private float _moveSpeedModifier = 1.0f;
         private float _knockbackStrength = 0f;
-        public float MagnetRange { get; private set; } = 3.5f;        public int ProjectileCount { get; private set; } = 1;
+        public float MagnetRange { get; private set; } = 3.5f;
+        public int ProjectileCount { get; private set; } = 1;
         public int PiercingCount { get; private set; } = 0;
+
+        public float DamageModifier { get; private set; } = 1.0f;
+        public float BulletSizeModifier { get; private set; } = 1.0f;
 
         private bool _movingRight, _movingLeft, _movingUp, _movingDown;
         private float _baseSpeed = 6.0f;
@@ -65,10 +69,11 @@ namespace IsometricGame.Classes
         public void BuffMaxLife(int amount) { MaxLife += amount; Life += amount; }
         public void Heal(int amount) => Life = Math.Min(Life + amount, MaxLife);
         public void BuffKnockback(float amount) => _knockbackStrength += amount;
-
         public void BuffMagnet(float amount) => MagnetRange += amount;
         public void BuffProjectileCount(int amount) => ProjectileCount += amount;
         public void BuffPiercing(int amount) => PiercingCount += amount;
+        public void BuffDamage(float percentage) => DamageModifier += percentage;
+        public void BuffBulletSize(float percentage) => BulletSizeModifier += percentage;
 
         public bool AddExperience(int amount)
         {
@@ -123,13 +128,18 @@ namespace IsometricGame.Classes
 
         private void Fire(GameTime gameTime, Vector2 worldAimDirection)
         {
+            int finalDamage = (int)MathF.Max(1, MathF.Round(1.0f * DamageModifier));
+
             var options = new BulletOptions
             {
                 SpeedScale = 12.0f,
                 Piercing = this.PiercingCount,
                 Knockback = this._knockbackStrength,
                 Count = this.ProjectileCount,
-                SpreadArc = 0.5f            };
+                SpreadArc = 0.5f,
+                Damage = finalDamage,
+                Scale = this.BulletSizeModifier
+            };
 
             string pattern = (this.ProjectileCount > 1) ? "multishot" : "single";
 
@@ -146,7 +156,9 @@ namespace IsometricGame.Classes
                 GameEngine.PlayerBullets.Add(bullet);
                 GameEngine.AllSprites.Add(bullet);
             }
-            GameEngine.Assets.Sounds["shoot"].Play(0.4f, 0.2f, 0f);
+
+            float pitch = (float)GameEngine.Random.NextDouble() * 0.2f - 0.1f;
+            GameEngine.Assets.Sounds["shoot"].Play(0.4f, pitch, 0f);
         }
 
         private void Animate(Vector2 moveDirection)

@@ -13,7 +13,7 @@ namespace IsometricGame.Classes.Upgrades
             _allUpgrades = new List<UpgradeOption>
             {
                 new UpgradeOption(
-                    "Coffee",
+                    "Espresso Shot",
                     "Increases Attack Speed by 15%.",
                     Color.Orange,
                     p => p.BuffAttackSpeed(0.15f)
@@ -65,6 +65,18 @@ namespace IsometricGame.Classes.Upgrades
                     "Bullets now pierce through +1 enemy.",
                     Color.DarkRed,
                     p => p.BuffPiercing(1)
+                ),
+                new UpgradeOption(
+                    "Hollow Points",
+                    "Increases Damage by 1 (Base).",
+                    Color.Crimson,
+                    p => p.BuffDamage(1.0f)
+                ),
+                new UpgradeOption(
+                    "Heavy Barrel",
+                    "Increases Bullet Size by 25%.",
+                    Color.SlateGray,
+                    p => p.BuffBulletSize(0.25f)
                 )
             };
         }
@@ -72,7 +84,6 @@ namespace IsometricGame.Classes.Upgrades
         public static List<UpgradeOption> GetRandomOptions(int count)
         {
             if (_allUpgrades == null) Initialize();
-
             return _allUpgrades.OrderBy(x => GameEngine.Random.Next()).Take(count).ToList();
         }
     }

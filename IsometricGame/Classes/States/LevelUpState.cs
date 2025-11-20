@@ -10,8 +10,7 @@ namespace IsometricGame.States
     {
         private List<UpgradeOption> _options;
         private Rectangle[] _cardRects;
-        private int _hoveredIndex = -1;
-        private Texture2D _pixel;
+        private int _hoveredIndex = -1;        private int _selectedIndex = 0;        private Texture2D _pixel;
         private SpriteFont _titleFont;
         private SpriteFont _descFont;
         private bool _soundPlayed = false;
@@ -19,28 +18,23 @@ namespace IsometricGame.States
         public override void Start()
         {
             base.Start();
-
             _options = GameEngine.CurrentUpgradeOptions ?? UpgradeManager.GetRandomOptions(3);
-
             _pixel = GameEngine.Assets.Images["pixel"];
             _titleFont = GameEngine.Assets.Fonts["captain_42"];
             _descFont = GameEngine.Assets.Fonts["captain_32"];
 
             Game1.Instance.IsMouseVisible = true;
             CalculateLayout();
-
             _soundPlayed = false;
-        }
+            _selectedIndex = 0;        }
 
         private void CalculateLayout()
         {
             int count = _options.Count;
             _cardRects = new Rectangle[count];
-
             int cardWidth = 300;
             int cardHeight = 450;
             int gap = 40;
-
             int totalWidth = (cardWidth * count) + (gap * (count - 1));
             int startX = (Constants.InternalResolution.X - totalWidth) / 2;
             int centerY = Constants.InternalResolution.Y / 2;
@@ -59,6 +53,22 @@ namespace IsometricGame.States
                 _soundPlayed = true;
             }
 
+            if (input.IsKeyPressed("LEFT"))
+            {
+                _selectedIndex = (_selectedIndex - 1 + _options.Count) % _options.Count;
+                GameEngine.Assets.Sounds["menu_select"].Play();
+            }
+            if (input.IsKeyPressed("RIGHT"))
+            {
+                _selectedIndex = (_selectedIndex + 1) % _options.Count;
+                GameEngine.Assets.Sounds["menu_select"].Play();
+            }
+            if (input.IsKeyPressed("START"))
+            {
+                SelectUpgrade(_selectedIndex);
+                return;
+            }
+
             _hoveredIndex = -1;
             Vector2 mousePos = input.InternalMousePosition;
             Point mousePoint = new Point((int)mousePos.X, (int)mousePos.Y);
@@ -68,10 +78,15 @@ namespace IsometricGame.States
                 if (_cardRects[i].Contains(mousePoint))
                 {
                     _hoveredIndex = i;
+                    if (_selectedIndex != i)
+                    {
+                        _selectedIndex = i;
+                    }
 
                     if (input.IsLeftMouseButtonPressed())
                     {
                         SelectUpgrade(i);
+                        return;
                     }
                 }
             }
@@ -83,9 +98,7 @@ namespace IsometricGame.States
             {
                 _options[index].ApplyEffect(GameEngine.Player);
             }
-
             GameEngine.Assets.Sounds["menu_select"].Play();
-
             IsDone = true;
             NextState = "Game";
         }
@@ -102,42 +115,41 @@ namespace IsometricGame.States
             {
                 var opt = _options[i];
                 var rect = _cardRects[i];
-                bool isHovered = (i == _hoveredIndex);
+                bool isSelected = (i == _selectedIndex);
 
                 Rectangle drawRect = rect;
-                if (isHovered)
+                if (isSelected)
                 {
-                    drawRect.Y -= 10;
-                    spriteBatch.Draw(_pixel, new Rectangle(drawRect.X + 10, drawRect.Y + 10, drawRect.Width, drawRect.Height), Color.Black * 0.5f);
+                    drawRect.Y -= 20;                    spriteBatch.Draw(_pixel, new Rectangle(drawRect.X + 10, drawRect.Y + 10, drawRect.Width, drawRect.Height), Color.Black * 0.5f);
                 }
 
-                Color cardColor = isHovered ? Color.Lerp(Color.DarkSlateGray, opt.Color, 0.2f) : Color.DarkSlateGray;
-                Color borderColor = isHovered ? opt.Color : Color.Gray;
+                Color cardColor = isSelected ? Color.Lerp(Color.DarkSlateGray, opt.Color, 0.3f) : Color.DarkSlateGray;
+                Color borderColor = isSelected ? opt.Color : Color.Gray;
 
                 spriteBatch.Draw(_pixel, drawRect, cardColor);
-
-                int borderThick = 4;
-                DrawBorder(spriteBatch, drawRect, borderThick, borderColor);
+                DrawBorder(spriteBatch, drawRect, 4, borderColor);
 
                 float centerX = drawRect.X + drawRect.Width / 2f;
-
                 DrawUtils.DrawTextScreen(spriteBatch, opt.Title, _titleFont, new Vector2(centerX, drawRect.Y + 50), opt.Color);
-
                 spriteBatch.Draw(_pixel, new Rectangle(drawRect.X + 20, drawRect.Y + 90, drawRect.Width - 40, 2), Color.White * 0.5f);
 
                 string wrappedDesc = WrapText(_descFont, opt.Description, drawRect.Width - 30);
                 DrawUtils.DrawTextScreen(spriteBatch, wrappedDesc, _descFont, new Vector2(centerX, drawRect.Y + 140), Color.White);
 
-                if (isHovered)
+                if (isSelected)
                 {
-                    DrawUtils.DrawTextScreen(spriteBatch, "Click to Select", _descFont, new Vector2(centerX, drawRect.Y + drawRect.Height - 40), Color.Yellow * 0.8f);
+                    DrawUtils.DrawTextScreen(spriteBatch, "Click or Press Space", _descFont, new Vector2(centerX, drawRect.Y + drawRect.Height - 40), Color.Yellow);
                 }
             }
         }
 
         private void DrawBorder(SpriteBatch sb, Rectangle rect, int thickness, Color color)
         {
-            sb.Draw(_pixel, new Rectangle(rect.X, rect.Y, rect.Width, thickness), color);            sb.Draw(_pixel, new Rectangle(rect.X, rect.Y + rect.Height - thickness, rect.Width, thickness), color);            sb.Draw(_pixel, new Rectangle(rect.X, rect.Y, thickness, rect.Height), color);            sb.Draw(_pixel, new Rectangle(rect.X + rect.Width - thickness, rect.Y, thickness, rect.Height), color);        }
+            sb.Draw(_pixel, new Rectangle(rect.X, rect.Y, rect.Width, thickness), color);
+            sb.Draw(_pixel, new Rectangle(rect.X, rect.Y + rect.Height - thickness, rect.Width, thickness), color);
+            sb.Draw(_pixel, new Rectangle(rect.X, rect.Y, thickness, rect.Height), color);
+            sb.Draw(_pixel, new Rectangle(rect.X + rect.Width - thickness, rect.Y, thickness, rect.Height), color);
+        }
 
         private string WrapText(SpriteFont font, string text, float maxLineWidth)
         {
@@ -145,20 +157,11 @@ namespace IsometricGame.States
             string sb = "";
             float lineWidth = 0f;
             float spaceWidth = font.MeasureString(" ").X;
-
             foreach (string word in words)
             {
                 Vector2 size = font.MeasureString(word);
-                if (lineWidth + size.X < maxLineWidth)
-                {
-                    sb += word + " ";
-                    lineWidth += size.X + spaceWidth;
-                }
-                else
-                {
-                    sb += "\n" + word + " ";
-                    lineWidth = size.X + spaceWidth;
-                }
+                if (lineWidth + size.X < maxLineWidth) { sb += word + " "; lineWidth += size.X + spaceWidth; }
+                else { sb += "\n" + word + " "; lineWidth = size.X + spaceWidth; }
             }
             return sb;
         }

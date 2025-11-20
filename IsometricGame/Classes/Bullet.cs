@@ -11,7 +11,11 @@ namespace IsometricGame.Classes
         public int? Count { get; set; }
         public float? SpreadArc { get; set; }
         public float? SpeedScale { get; set; } = 10.0f;
-        public int Piercing { get; set; } = 0;        public float Knockback { get; set; } = 0f;
+        public int Piercing { get; set; } = 0;
+        public float Knockback { get; set; } = 0f;
+
+        public int Damage { get; set; } = 1;
+        public float Scale { get; set; } = 1.0f;
     }
 
     public class Bullet : Sprite
@@ -23,6 +27,9 @@ namespace IsometricGame.Classes
         public int PiercingLeft { get; set; }
         public float KnockbackPower { get; set; }
 
+        public int DamageAmount { get; private set; }
+        public float Scale { get; private set; }
+
         public HashSet<EnemyBase> HitList { get; private set; } = new HashSet<EnemyBase>();
 
         public Bullet(Vector2 worldPosXY, Vector2 worldDirection, bool isFromPlayer, BulletOptions options = null)
@@ -33,6 +40,8 @@ namespace IsometricGame.Classes
             float speedScale = options.SpeedScale.Value;
             PiercingLeft = options.Piercing;
             KnockbackPower = options.Knockback;
+            DamageAmount = options.Damage;
+            Scale = options.Scale;
 
             Texture = isFromPlayer ? PlayerImage : EnemyImage;
             if (Texture == null) Texture = Particles.Explosion.PixelTexture;
@@ -64,6 +73,7 @@ namespace IsometricGame.Classes
             {
                 int count = options.Count ?? 1;
                 float arc = options.SpreadArc ?? 0.5f;
+
                 float baseAngle = MathF.Atan2(worldDirection.Y, worldDirection.X);
                 float startAngle = baseAngle - arc / 2f;
                 float step = (count > 1) ? arc / (count - 1) : 0;
@@ -98,11 +108,10 @@ namespace IsometricGame.Classes
                 floatingScreenPos.Y -= BaseYOffsetWorld;
 
                 Vector2 drawPosition = new Vector2(MathF.Round(floatingScreenPos.X), MathF.Round(floatingScreenPos.Y));
-
                 float baseDepth = IsoMath.GetDepth(WorldPosition);
                 float finalDepth = MathHelper.Clamp(baseDepth - 0.0002f, 0f, 1f);
 
-                spriteBatch.Draw(Texture, drawPosition, null, Color.White, 0f, Origin, 1.0f, SpriteEffects.None, finalDepth);
+                spriteBatch.Draw(Texture, drawPosition, null, Color.White, 0f, Origin, Scale, SpriteEffects.None, finalDepth);
             }
         }
     }

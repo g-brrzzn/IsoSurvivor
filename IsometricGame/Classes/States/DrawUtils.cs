@@ -19,23 +19,9 @@ namespace IsometricGame.States
             spriteBatch.DrawString(font, text, position, color, 0, origin, 1.0f, SpriteEffects.None, depth);
         }
 
-        public static void DrawVerticalGradient(SpriteBatch spriteBatch, GraphicsDevice graphicsDevice, Color color1, Color color2)
+        public static List<Rectangle> DrawMenu(SpriteBatch spriteBatch, List<string> options, string title, int selected)
         {
-            Texture2D pixel = GameEngine.Assets.Images["pixel"];
-            int width = Constants.InternalResolution.X;
-            int height = Constants.InternalResolution.Y;
-            Vector2 cameraTopLeft = Game1.Camera.ScreenToWorld(Vector2.Zero);
-
-            for (int y = 0; y < height; y++)
-            {
-                float amount = (float)y / (float)height;
-                Color lerpedColor = Color.Lerp(color1, color2, amount);
-                spriteBatch.Draw(pixel, new Rectangle((int)cameraTopLeft.X, (int)cameraTopLeft.Y + y, width, 1), lerpedColor);
-            }
-        }
-
-        public static void DrawMenu(SpriteBatch spriteBatch, List<string> options, string title, int selected)
-        {
+            List<Rectangle> optionRects = new List<Rectangle>();
             Texture2D pixel = GameEngine.Assets.Images["pixel"];
             SpriteFont fontTitle = GameEngine.Assets.Fonts["captain_80"];
             SpriteFont fontOption = GameEngine.Assets.Fonts["captain_42"];
@@ -55,12 +41,21 @@ namespace IsometricGame.States
             {
                 Color color = (i == selected) ? Constants.GameColor : Color.White;
                 Vector2 posScreen = new Vector2(startPosScreen.X, startPosScreen.Y + i * yGap);
+                Vector2 textSize = fontOption.MeasureString(options[i]);
+
+                Rectangle rect = new Rectangle(
+                    (int)(posScreen.X - textSize.X / 2),
+                    (int)(posScreen.Y - textSize.Y / 2),
+                    (int)textSize.X,
+                    (int)textSize.Y
+                );
+                optionRects.Add(rect);
 
                 DrawTextScreen(spriteBatch, options[i], fontOption, posScreen, color, 1.0f);
 
                 if (i == selected)
                 {
-                    float textWidth = fontOption.MeasureString(options[i]).X / 2f;
+                    float textWidth = textSize.X / 2f;
                     Vector2 leftMarkerPos = new Vector2(posScreen.X - textWidth - 20, posScreen.Y);
                     Vector2 rightMarkerPos = new Vector2(posScreen.X + textWidth + 20, posScreen.Y);
 
@@ -68,6 +63,7 @@ namespace IsometricGame.States
                     DrawTextScreen(spriteBatch, "|", fontOption, rightMarkerPos, color, 1.0f);
                 }
             }
+            return optionRects;
         }
     }
 }

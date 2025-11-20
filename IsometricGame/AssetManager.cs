@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Content;
 using System.Collections.Generic;
 using System;
 using Microsoft.Xna.Framework;
+using System.Diagnostics;
 
 namespace IsometricGame
 {
@@ -19,10 +20,7 @@ namespace IsometricGame
         {
             var texture = new Texture2D(device, width, height);
             Color[] data = new Color[width * height];
-            for (int i = 0; i < data.Length; i++)
-            {
-                data[i] = color;
-            }
+            for (int i = 0; i < data.Length; i++) data[i] = color;
             texture.SetData(data);
             return texture;
         }
@@ -41,13 +39,9 @@ namespace IsometricGame
                     float dx = Math.Abs(x - midX);
                     float dy = Math.Abs(y - midY);
                     if ((dx / (width / 2.0f)) + (dy / (height / 2.0f)) <= 1.0f)
-                    {
                         data[y * width + x] = color;
-                    }
                     else
-                    {
                         data[y * width + x] = Color.Transparent;
-                    }
                 }
             }
             texture.SetData(data);
@@ -65,9 +59,7 @@ namespace IsometricGame
             {
                 for (int x = 0; x < size; x++)
                 {
-                    if (x >= center - halfThickness && x <= center + halfThickness)
-                        data[y * size + x] = color;
-                    else if (y >= center - halfThickness && y <= center + halfThickness)
+                    if ((x >= center - halfThickness && x <= center + halfThickness) || (y >= center - halfThickness && y <= center + halfThickness))
                         data[y * size + x] = color;
                     else
                         data[y * size + x] = Color.Transparent;
@@ -77,9 +69,41 @@ namespace IsometricGame
             return texture;
         }
 
+        private void LoadTextureSafe(ContentManager content, GraphicsDevice device, string key, string path, Color fallbackColor)
+        {
+            try
+            {
+                Images[key] = content.Load<Texture2D>(path);
+            }
+            catch
+            {
+                Debug.WriteLine($"[AssetManager] Falha ao carregar '{path}'. Usando fallback.");
+                Images[key] = CreateDiamondTexture(device, 36, 18, fallbackColor);
+            }
+        }
+
         public void LoadContent(ContentManager content, GraphicsDevice graphicsDevice)
         {
-            Images["gem"] = CreateDiamondTexture(graphicsDevice, 10, 14, Color.Cyan);
+
+            LoadTextureSafe(content, graphicsDevice, "tile_grass1", "sprites/tiles/grass_tile1", Color.Green);
+            LoadTextureSafe(content, graphicsDevice, "tile_grass2", "sprites/tiles/grass_tile2", Color.LimeGreen);
+            LoadTextureSafe(content, graphicsDevice, "tile_grass3", "sprites/tiles/grass_tile3", Color.DarkGreen);
+
+            LoadTextureSafe(content, graphicsDevice, "tile_dirt1", "sprites/tiles/dirt_tile1", Color.SaddleBrown);
+            LoadTextureSafe(content, graphicsDevice, "tile_dirt2", "sprites/tiles/dirt_tile2", Color.Brown);
+            LoadTextureSafe(content, graphicsDevice, "tile_dirt3", "sprites/tiles/dirt_tile3", Color.SandyBrown);
+
+            LoadTextureSafe(content, graphicsDevice, "water_tile1", "sprites/tiles/water_tile1", Color.DeepSkyBlue);
+            LoadTextureSafe(content, graphicsDevice, "water_tile2", "sprites/tiles/water_tile2", Color.DodgerBlue);
+            LoadTextureSafe(content, graphicsDevice, "water_tile3", "sprites/tiles/water_tile3", Color.Blue);
+
+            LoadTextureSafe(content, graphicsDevice, "tile_wall", "sprites/tiles/rock_tile3", Color.Gray);
+
+
+            Images["gem_1"] = CreateDiamondTexture(graphicsDevice, 10, 14, Color.Cyan);
+            Images["gem_10"] = CreateDiamondTexture(graphicsDevice, 12, 16, Color.LimeGreen);
+            Images["gem_50"] = CreateDiamondTexture(graphicsDevice, 14, 20, Color.Red);
+
 
             var playerSprite = CreateDiamondTexture(graphicsDevice, 16, 32, Constants.PlayerColorGreen);
             Images["player_idle_south"] = playerSprite;
@@ -91,14 +115,19 @@ namespace IsometricGame
             Images["bullet_player"] = CreateRectangleTexture(graphicsDevice, 8, 8, Color.Yellow);
             Images["bullet_enemy"] = CreateRectangleTexture(graphicsDevice, 8, 8, Color.Magenta);
 
+
             var enemySprite = CreateDiamondTexture(graphicsDevice, 16, 32, Color.DarkRed);
             Images["enemy1_idle_south"] = enemySprite;
             Images["enemy1_idle_west"] = enemySprite;
             Images["enemy1_idle_north"] = enemySprite;
             Images["enemy1_idle_east"] = enemySprite;
 
-            try { Images["tile_grass1"] = content.Load<Texture2D>("sprites/tiles/grass_tile1"); } catch { }
-            try { Images["tile_wall"] = content.Load<Texture2D>("sprites/tiles/rock_tile3"); } catch { }
+            var batSprite = CreateDiamondTexture(graphicsDevice, 24, 16, Color.Purple);
+            Images["bat_idle"] = batSprite;
+
+            var golemSprite = CreateDiamondTexture(graphicsDevice, 24, 40, Color.SlateGray);
+            Images["golem_idle"] = golemSprite;
+
 
             Images["cursor"] = CreateCrosshairTexture(graphicsDevice, 16, 2, Color.White);
 
