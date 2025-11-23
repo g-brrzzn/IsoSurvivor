@@ -1,9 +1,8 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Audio;
 using System.Collections.Generic;
 using IsometricGame.Classes.Particles;
-using System;
+using IsometricGame.Classes.Weapons;using System;
 
 namespace IsometricGame.Classes
 {
@@ -11,35 +10,41 @@ namespace IsometricGame.Classes
     {
         private Dictionary<string, Texture2D> _sprites;
         private string _currentDirection = "south";
-
         public int Level { get; private set; } = 1;
         public int Experience { get; private set; } = 0;
         public int ExperienceToNextLevel { get; private set; } = 5;
-        public int MaxLife { get; private set; } = Constants.MaxLife;
-
-        private float _attackCooldown = 0.8f;
-        private float _attackTimer = 0f;
-        private float _attackRange = 8.0f;
-        private float _moveSpeedModifier = 1.0f;
-        private float _knockbackStrength = 0f;
+        public int MaxLife { get; private set; }
+        public int Life { get; private set; }
+        public float MoveSpeedModifier { get; private set; } = 1.0f;
+        public float DamageModifier { get; private set; } = 1.0f;
+        public float BulletSizeModifier { get; private set; } = 1.0f;
+        public float AttackSpeedModifier { get; private set; } = 1.0f;        public float RangeModifier { get; private set; } = 1.0f;        public float KnockbackStrength { get; private set; } = 0f;
         public float MagnetRange { get; private set; } = 3.5f;
         public int ProjectileCount { get; private set; } = 1;
         public int PiercingCount { get; private set; } = 0;
-
-        public float DamageModifier { get; private set; } = 1.0f;
-        public float BulletSizeModifier { get; private set; } = 1.0f;
-
+        public List<WeaponBase> Weapons { get; private set; }
         private bool _movingRight, _movingLeft, _movingUp, _movingDown;
         private float _baseSpeed = 6.0f;
-
-        public int Life { get; private set; }
-        public Explosion ExplosionEffect { get; private set; }
-        private double _lastHit;
-        private double _invincibilityDuration = 1000;
         private const float _collisionRadius = .35f;
+        public Explosion ExplosionEffect { get; private set; }
+        private double _lastHitTime;
+        private double _invincibilityDurationMs = 1000;
         private bool _isInvincible = false;
 
         public Player(Vector3 worldPos) : base(null, worldPos)
+        {
+            LoadPlayerSprites();
+
+            if (Texture != null)
+                Origin = new Vector2(Texture.Width / 2f, Texture.Height);
+            MaxLife = Constants.MaxLife;
+            Life = MaxLife;
+            ExplosionEffect = new Explosion();
+            Weapons = new List<WeaponBase>();
+            Weapons.Add(new SimpleWeapon(this));
+        }
+
+        private void LoadPlayerSprites()
         {
             _sprites = new Dictionary<string, Texture2D>
             {
@@ -51,28 +56,35 @@ namespace IsometricGame.Classes
 
             if (_sprites.ContainsKey(_currentDirection))
                 UpdateTexture(_sprites[_currentDirection]);
-            if (Texture != null)
-                Origin = new Vector2(Texture.Width / 2f, Texture.Height);
-
-            MaxLife = Constants.MaxLife;
-            Life = MaxLife;
-            ExplosionEffect = new Explosion();
         }
 
         public void BuffAttackSpeed(float percentage)
         {
-            _attackCooldown *= (1.0f - percentage);
-            _attackCooldown = Math.Max(0.1f, _attackCooldown);
+            AttackSpeedModifier += percentage;
         }
-        public void BuffMoveSpeed(float percentage) => _moveSpeedModifier += percentage;
-        public void BuffRange(float percentage) => _attackRange *= (1.0f + percentage);
-        public void BuffMaxLife(int amount) { MaxLife += amount; Life += amount; }
+
+        public void BuffMoveSpeed(float percentage) => MoveSpeedModifier += percentage;
+
+        public void BuffRange(float percentage) => RangeModifier += percentage;
+
+        public void BuffMaxLife(int amount)
+        {
+            MaxLife += amount;
+            Life += amount;
+        }
+
         public void Heal(int amount) => Life = Math.Min(Life + amount, MaxLife);
-        public void BuffKnockback(float amount) => _knockbackStrength += amount;
+
+        public void BuffKnockback(float amount) => KnockbackStrength += amount;
+
         public void BuffMagnet(float amount) => MagnetRange += amount;
+
         public void BuffProjectileCount(int amount) => ProjectileCount += amount;
+
         public void BuffPiercing(int amount) => PiercingCount += amount;
+
         public void BuffDamage(float percentage) => DamageModifier += percentage;
+
         public void BuffBulletSize(float percentage) => BulletSizeModifier += percentage;
 
         public bool AddExperience(int amount)
@@ -98,67 +110,36 @@ namespace IsometricGame.Classes
             _movingDown = input.IsKeyDown("DOWN");
         }
 
-        private void HandleAutoAttack(GameTime gameTime, float dt)
+        public override void Update(GameTime gameTime, float dt)
         {
-            _attackTimer -= dt;
+            GetInput(Game1.InputManagerInstance);
+            Vector2 worldDirection = Vector2.Zero;
+            if (_movingUp) worldDirection += new Vector2(-1, -1);
+            if (_movingDown) worldDirection += new Vector2(1, 1);
+            if (_movingLeft) worldDirection += new Vector2(-1, 1);
+            if (_movingRight) worldDirection += new Vector2(1, -1);
 
-            if (_attackTimer <= 0)
+            if (worldDirection != Vector2.Zero) worldDirection.Normalize();
+
+            Animate(worldDirection);
+            foreach (var weapon in Weapons)
             {
-                EnemyBase closestEnemy = null;
-                float closestDistSq = float.MaxValue;
-                float rangeSq = _attackRange * _attackRange;
-
-                foreach (var enemy in GameEngine.AllEnemies)
-                {
-                    if (enemy.IsRemoved) continue;
-                    float distSq = Vector2.DistanceSquared(new Vector2(WorldPosition.X, WorldPosition.Y), new Vector2(enemy.WorldPosition.X, enemy.WorldPosition.Y));
-                    if (distSq < rangeSq && distSq < closestDistSq) { closestDistSq = distSq; closestEnemy = enemy; }
-                }
-
-                if (closestEnemy != null)
-                {
-                    Vector2 direction = new Vector2(closestEnemy.WorldPosition.X - WorldPosition.X, closestEnemy.WorldPosition.Y - WorldPosition.Y);
-                    if (direction != Vector2.Zero) direction.Normalize();
-
-                    Fire(gameTime, direction);
-                    _attackTimer = _attackCooldown;
-                }
+                weapon.Update(gameTime, dt);
             }
-        }
+            ExplosionEffect.Update(dt);
+            _isInvincible = gameTime.TotalGameTime.TotalMilliseconds - _lastHitTime < _invincibilityDurationMs;
+            float currentSpeed = _baseSpeed * MoveSpeedModifier;
+            Vector2 movement = worldDirection * currentSpeed * dt;
 
-        private void Fire(GameTime gameTime, Vector2 worldAimDirection)
-        {
-            int finalDamage = (int)MathF.Max(1, MathF.Round(1.0f * DamageModifier));
+            Vector3 nextPos = WorldPosition + new Vector3(movement.X, 0, 0);
+            if (IsCollidingAt(nextPos)) movement.X = 0;
 
-            var options = new BulletOptions
-            {
-                SpeedScale = 12.0f,
-                Piercing = this.PiercingCount,
-                Knockback = this._knockbackStrength,
-                Count = this.ProjectileCount,
-                SpreadArc = 0.5f,
-                Damage = finalDamage,
-                Scale = this.BulletSizeModifier
-            };
+            nextPos = WorldPosition + new Vector3(0, movement.Y, 0);
+            if (IsCollidingAt(nextPos)) movement.Y = 0;
 
-            string pattern = (this.ProjectileCount > 1) ? "multishot" : "single";
-
-            var bullets = Bullet.CreateBullets(
-              pattern: pattern,
-              worldPos: new Vector2(this.WorldPosition.X, this.WorldPosition.Y),
-              worldDirection: worldAimDirection,
-              isFromPlayer: true,
-              options: options
-            );
-
-            foreach (var bullet in bullets)
-            {
-                GameEngine.PlayerBullets.Add(bullet);
-                GameEngine.AllSprites.Add(bullet);
-            }
-
-            float pitch = (float)GameEngine.Random.NextDouble() * 0.2f - 0.1f;
-            GameEngine.Assets.Sounds["shoot"].Play(0.4f, pitch, 0f);
+            WorldPosition += new Vector3(movement.X, movement.Y, 0);
+            UpdateScreenPosition();
+            WorldVelocity = (dt > 0) ? new Vector2(movement.X / dt, movement.Y / dt) : Vector2.Zero;
         }
 
         private void Animate(Vector2 moveDirection)
@@ -176,45 +157,16 @@ namespace IsometricGame.Classes
             if (Texture != null) Origin = new Vector2(Texture.Width / 2f, Texture.Height);
         }
 
-        public override void Update(GameTime gameTime, float dt)
-        {
-            GetInput(Game1.InputManagerInstance);
-
-            Vector2 worldDirection = Vector2.Zero;
-            if (_movingUp) worldDirection += new Vector2(-1, -1);
-            if (_movingDown) worldDirection += new Vector2(1, 1);
-            if (_movingLeft) worldDirection += new Vector2(-1, 1);
-            if (_movingRight) worldDirection += new Vector2(1, -1);
-
-            if (worldDirection != Vector2.Zero) worldDirection.Normalize();
-
-            Animate(worldDirection);
-            HandleAutoAttack(gameTime, dt);
-
-            ExplosionEffect.Update(dt);
-            _isInvincible = gameTime.TotalGameTime.TotalMilliseconds - _lastHit < _invincibilityDuration;
-
-            float currentSpeed = _baseSpeed * _moveSpeedModifier;
-            Vector2 movement = worldDirection * currentSpeed * dt;
-
-            Vector3 nextPos = WorldPosition + new Vector3(movement.X, 0, 0);
-            if (IsCollidingAt(nextPos)) movement.X = 0;
-            nextPos = WorldPosition + new Vector3(0, movement.Y, 0);
-            if (IsCollidingAt(nextPos)) movement.Y = 0;
-
-            WorldPosition += new Vector3(movement.X, movement.Y, 0);
-            UpdateScreenPosition();
-            WorldVelocity = (dt > 0) ? new Vector2(movement.X / dt, movement.Y / dt) : Vector2.Zero;
-        }
-
         private bool IsCollidingAt(Vector3 futurePosition)
         {
             float baseZ = futurePosition.Z;
             Vector2 posXY = new Vector2(futurePosition.X, futurePosition.Y);
             Vector2 topLeft = posXY + new Vector2(-_collisionRadius, -_collisionRadius);
             Vector2 bottomRight = posXY + new Vector2(_collisionRadius, _collisionRadius);
+
             Vector3 cellTL = new Vector3(MathF.Round(topLeft.X), MathF.Round(topLeft.Y), baseZ);
             Vector3 cellBR = new Vector3(MathF.Round(bottomRight.X), MathF.Round(bottomRight.Y), baseZ);
+
             return GameEngine.SolidTiles.ContainsKey(cellTL) || GameEngine.SolidTiles.ContainsKey(cellBR);
         }
 
@@ -223,12 +175,22 @@ namespace IsometricGame.Classes
             if (!_isInvincible)
             {
                 Life -= 1;
-                _lastHit = gameTime.TotalGameTime.TotalMilliseconds;
+                _lastHitTime = gameTime.TotalGameTime.TotalMilliseconds;
                 _isInvincible = true;
+
                 if (Texture != null)
-                    ExplosionEffect.Create(this.ScreenPosition.X, this.ScreenPosition.Y - (this.Texture.Height / 2f), Constants.PlayerColorGreen, speed: -5);
+                    ExplosionEffect.Create(
+                    this.ScreenPosition.X,
+                    this.ScreenPosition.Y - Texture.Height / 2f,
+                    color: Constants.PlayerColorGreen,
+                    count: 50,
+                    eRange: 20,
+                    speed: 300f
+                );
+
                 GameEngine.Assets.Sounds["hit"].Play();
                 GameEngine.ScreenShake = 15;
+
                 if (Life <= 0) Kill();
             }
         }

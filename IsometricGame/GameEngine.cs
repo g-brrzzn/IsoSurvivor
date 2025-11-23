@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using IsometricGame.Classes;
-using IsometricGame.Classes.Upgrades;
+using IsometricGame.Classes.Items;using IsometricGame.Classes.Upgrades;
 using Microsoft.Xna.Framework;
 
 namespace IsometricGame
@@ -19,7 +19,7 @@ namespace IsometricGame
         public static List<Bullet> EnemyBullets { get; private set; }
 
         public static List<ExperienceGem> Gems { get; private set; }
-
+        public static List<ItemDrop> Items { get; private set; }
         public static Dictionary<Vector3, Sprite> SolidTiles { get; private set; }
 
         public static AssetManager Assets { get; set; }
@@ -35,6 +35,8 @@ namespace IsometricGame
 
         public static List<UpgradeOption> CurrentUpgradeOptions { get; set; }
 
+        public static List<IsometricGame.Classes.UI.FloatingText> FloatingTexts { get; private set; }
+
         public static void Initialize()
         {
             AllSprites = new List<Sprite>();
@@ -42,6 +44,7 @@ namespace IsometricGame
             PlayerBullets = new List<Bullet>();
             EnemyBullets = new List<Bullet>();
             Gems = new List<ExperienceGem>();
+            Items = new List<ItemDrop>();            FloatingTexts = new List<IsometricGame.Classes.UI.FloatingText>();
             SolidTiles = new Dictionary<Vector3, Sprite>();
             Assets = new AssetManager();
             Random = new Random();
@@ -53,9 +56,9 @@ namespace IsometricGame
             Level = 1;
             ScreenShake = 0;
             OnTextInputComplete = null;
-
             CurrentUpgradeOptions = null;
-            UpgradeManager.Initialize();        }
+            UpgradeManager.Initialize();
+        }
 
         public static void ResetGame()
         {
@@ -64,6 +67,7 @@ namespace IsometricGame
             PlayerBullets.Clear();
             EnemyBullets.Clear();
             Gems.Clear();
+            Items.Clear();            FloatingTexts.Clear();
             SolidTiles.Clear();
             Player = null;
             TargetWorldPosition = Vector2.Zero;

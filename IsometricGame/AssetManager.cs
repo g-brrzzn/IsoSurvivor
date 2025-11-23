@@ -128,6 +128,8 @@ namespace IsometricGame
             var golemSprite = CreateDiamondTexture(graphicsDevice, 24, 40, Color.SlateGray);
             Images["golem_idle"] = golemSprite;
 
+            Images["item_potion"] = CreateDiamondTexture(graphicsDevice, 14, 18, Color.Red);
+            Images["item_magnet"] = CreateDiamondTexture(graphicsDevice, 14, 18, Color.Blue);
 
             Images["cursor"] = CreateCrosshairTexture(graphicsDevice, 16, 2, Color.White);
 
