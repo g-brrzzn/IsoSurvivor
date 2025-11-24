@@ -1,8 +1,10 @@
-﻿using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
-using System.Collections.Generic;
+﻿using IsometricGame.Classes.Items;
 using IsometricGame.Classes.Particles;
-using IsometricGame.Classes.Weapons;using System;
+using IsometricGame.Classes.Weapons;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using System;
+using System.Collections.Generic;
 
 namespace IsometricGame.Classes
 {
@@ -22,7 +24,6 @@ namespace IsometricGame.Classes
         public float MagnetRange { get; private set; } = 3.5f;
         public int ProjectileCount { get; private set; } = 1;
         public int PiercingCount { get; private set; } = 0;
-        public List<WeaponBase> Weapons { get; private set; }
         private bool _movingRight, _movingLeft, _movingUp, _movingDown;
         private float _baseSpeed = 6.0f;
         private const float _collisionRadius = .35f;
@@ -30,7 +31,8 @@ namespace IsometricGame.Classes
         private double _lastHitTime;
         private double _invincibilityDurationMs = 1000;
         private bool _isInvincible = false;
-
+        public List<WeaponBase> Weapons { get; private set; }
+        public List<PassiveItem> Passives { get; private set; }
         public Player(Vector3 worldPos) : base(null, worldPos)
         {
             LoadPlayerSprites();
@@ -41,7 +43,7 @@ namespace IsometricGame.Classes
             Life = MaxLife;
             ExplosionEffect = new Explosion();
             Weapons = new List<WeaponBase>();
-            Weapons.Add(new SimpleWeapon(this));
+            Passives = new List<PassiveItem>();            Weapons.Add(new SimpleWeapon(this));
         }
 
         private void LoadPlayerSprites()
@@ -56,6 +58,40 @@ namespace IsometricGame.Classes
 
             if (_sprites.ContainsKey(_currentDirection))
                 UpdateTexture(_sprites[_currentDirection]);
+        }
+
+        public bool HasPassive(PassiveType type)
+        {
+            return Passives.Exists(p => p.Type == type);
+        }
+        public void AddOrLevelUpPassive(PassiveType type)
+        {
+            var passive = Passives.Find(p => p.Type == type);
+            if (passive != null)
+            {
+                passive.LevelUp(this);
+            }
+            else
+            {
+                PassiveItem newPassive = CreatePassive(type);
+                if (newPassive != null)
+                {
+                    Passives.Add(newPassive);
+                    newPassive.LevelUp(this);                }
+            }
+        }
+
+        private PassiveItem CreatePassive(PassiveType type)
+        {
+            switch (type)
+            {
+                case PassiveType.EmptyTome:
+                    return new PassiveItem(type, "Empty Tome", 5, p => p.BuffAttackSpeed(0.08f));                case PassiveType.Spellbinder:
+                    return new PassiveItem(type, "Spellbinder", 5, p => { /* Implementar DurationModifier no player depois */ });
+                case PassiveType.Spinach:
+                    return new PassiveItem(type, "Spinach", 5, p => p.BuffDamage(0.1f));
+                default: return null;
+            }
         }
 
         public void BuffAttackSpeed(float percentage)

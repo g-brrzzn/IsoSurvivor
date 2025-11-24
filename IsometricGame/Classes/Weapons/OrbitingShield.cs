@@ -6,17 +6,27 @@ namespace IsometricGame.Classes.Weapons
 {
     public class OrbitingShield : WeaponBase
     {
-        private float _activeDuration = 5.0f;
+        private float _activeDuration = 3.0f;
+        private int _bonusAmount = 0;
+
         public OrbitingShield(Player owner) : base(owner)
         {
             Name = "Orbiting Shield";
-            BaseCooldown = 6.0f;
-            BaseDamage = 2;
+            BaseCooldown = 5.0f;
+            BaseDamage = 3;
+        }
+
+        public override void LevelUp()
+        {
+            base.LevelUp();
+            _bonusAmount++;
+            _activeDuration += 0.5f;
         }
 
         protected override bool TryAttack()
         {
-            int count = _owner.ProjectileCount + 1;            float damage = BaseDamage * _owner.DamageModifier;
+            int count = _owner.ProjectileCount + _bonusAmount;
+            float damage = BaseDamage * _owner.DamageModifier;
 
             for (int i = 0; i < count; i++)
             {
@@ -26,8 +36,7 @@ namespace IsometricGame.Classes.Weapons
                     _owner,
                     angle,
                     (int)damage,
-                    _activeDuration
-                );
+                    _activeDuration                );
 
                 GameEngine.AllSprites.Add(projectile);
             }

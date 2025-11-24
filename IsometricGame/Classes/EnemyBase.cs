@@ -2,7 +2,8 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Audio;
 using IsometricGame.Classes.Particles;
-using IsometricGame.Classes.UI;using System.Collections.Generic;
+using IsometricGame.Classes.UI;
+using IsometricGame.Classes.Items;using System.Collections.Generic;
 using System;
 
 namespace IsometricGame.Classes
@@ -19,10 +20,10 @@ namespace IsometricGame.Classes
         public float Speed { get; protected set; } = 3.0f;
         public int Weight { get; protected set; }
         public float KnockbackResistance { get; protected set; } = 0f;
+        protected float ChestDropChance { get; set; } = 0.01f;
 
         private double _lastHit;
         private double _hitFlashDuration = 100;
-        private const float _collisionRadius = 0.35f;
         private bool _isHit = false;
 
         private Vector2 _knockbackVelocity = Vector2.Zero;
@@ -32,7 +33,9 @@ namespace IsometricGame.Classes
         {
             _sprites = LoadSprites(spriteKeys);
             _explosion = new Explosion();
+
             UpdateSpriteDirection(Vector2.Zero);
+
             if (Texture != null)
             {
                 _explosion.Create(
@@ -81,13 +84,16 @@ namespace IsometricGame.Classes
                 if (direction.LengthSquared() > 0.1f && _sprites.Count > 1)
                 {
                     if (Math.Abs(direction.X) > Math.Abs(direction.Y))
-                        _currentDirection = direction.X > 0 ? "south" : "west";                    else
+                        _currentDirection = direction.X > 0 ? "south" : "west";
+                    else
                         _currentDirection = direction.Y > 0 ? "south" : "north";
                 }
+
                 if (_sprites.ContainsKey(_currentDirection))
                     UpdateTexture(_sprites[_currentDirection]);
                 else if (_sprites.ContainsKey("default"))
                     UpdateTexture(_sprites["default"]);
+
                 if (Texture != null)
                     Origin = new Vector2(Texture.Width / 2f, Texture.Height);
             }
@@ -103,6 +109,7 @@ namespace IsometricGame.Classes
         {
             _lastHit = gameTime.TotalGameTime.TotalMilliseconds;
             _isHit = true;
+
             Vector3 textPos = new Vector3(this.WorldPosition.X, this.WorldPosition.Y, this.WorldPosition.Z + 2.0f);
             Color damageColor = (amount > 5) ? Color.Yellow : Color.White;
 
@@ -124,26 +131,7 @@ namespace IsometricGame.Classes
             {
                 GameEngine.ScreenShake = Math.Max(GameEngine.ScreenShake, 3);
                 DropExperience();
-                DropLoot();
-                Kill();
-            }
-        }
-
-        private void DropLoot()
-        {
-            double rng = GameEngine.Random.NextDouble();
-            if (rng < 0.01)
-            {
-                var item = new IsometricGame.Classes.Items.ItemDrop(this.WorldPosition, IsometricGame.Classes.Items.ItemType.Magnet);
-                GameEngine.Items.Add(item);
-                GameEngine.AllSprites.Add(item);
-                return;
-            }
-            if (rng < 0.03)
-            {
-                var item = new IsometricGame.Classes.Items.ItemDrop(this.WorldPosition, IsometricGame.Classes.Items.ItemType.HealthPotion);
-                GameEngine.Items.Add(item);
-                GameEngine.AllSprites.Add(item);
+                DropLoot();                Kill();
             }
         }
 
@@ -153,6 +141,34 @@ namespace IsometricGame.Classes
             GameEngine.AllSprites.Add(gem);
         }
 
+        private void DropLoot()
+        {
+            double rng = GameEngine.Random.NextDouble();
+            if (ChestDropChance > 0 && rng < ChestDropChance)
+            {
+                var chest = new Chest(this.WorldPosition);
+                GameEngine.Items.Add(chest);
+                GameEngine.AllSprites.Add(chest);
+                GameEngine.Assets.Sounds["menu_confirm"].Play(0.8f, -0.2f, 0f);
+                return;
+            }
+
+            rng = GameEngine.Random.NextDouble();
+            if (rng < 0.01)
+            {
+                var item = new ItemDrop(this.WorldPosition, ItemType.Magnet);
+                GameEngine.Items.Add(item);
+                GameEngine.AllSprites.Add(item);
+                return;
+            }
+            if (rng < 0.001)
+            {
+                var item = new ItemDrop(this.WorldPosition, ItemType.HealthPotion);
+                GameEngine.Items.Add(item);
+                GameEngine.AllSprites.Add(item);
+            }
+        }
+
         public virtual void Move(GameTime gameTime, float dt)
         {
             if (GameEngine.Player == null || GameEngine.Player.IsRemoved)
@@ -160,20 +176,22 @@ namespace IsometricGame.Classes
                 WorldVelocity = Vector2.Zero;
                 return;
             }
+
             if (_knockbackVelocity.LengthSquared() > 0.5f)
             {
                 WorldVelocity = Vector2.Zero;
                 return;
             }
+
             Vector2 toPlayer = new Vector2(
                 GameEngine.Player.WorldPosition.X - WorldPosition.X,
                 GameEngine.Player.WorldPosition.Y - WorldPosition.Y
             );
             if (toPlayer != Vector2.Zero) toPlayer.Normalize();
+
             Vector2 separation = Vector2.Zero;
             int neighbors = 0;
             float separationRadius = 0.8f;
-
             foreach (var other in GameEngine.AllEnemies)
             {
                 if (other == this || other.IsRemoved) continue;
@@ -181,6 +199,7 @@ namespace IsometricGame.Classes
                 float distSq = Vector2.DistanceSquared(
                     new Vector2(WorldPosition.X, WorldPosition.Y),
                     new Vector2(other.WorldPosition.X, other.WorldPosition.Y));
+
                 if (distSq < separationRadius * separationRadius)
                 {
                     Vector2 push = new Vector2(WorldPosition.X - other.WorldPosition.X, WorldPosition.Y - other.WorldPosition.Y);
@@ -199,6 +218,7 @@ namespace IsometricGame.Classes
                 separation /= neighbors;
                 if (separation != Vector2.Zero) separation.Normalize();
             }
+
             Vector2 finalDir = (toPlayer * 0.7f) + (separation * 0.5f);
             if (finalDir != Vector2.Zero) finalDir.Normalize();
 
@@ -210,9 +230,12 @@ namespace IsometricGame.Classes
         public override void Update(GameTime gameTime, float dt)
         {
             Move(gameTime, dt);
+
             _knockbackVelocity = Vector2.Lerp(_knockbackVelocity, Vector2.Zero, _friction * dt);
+
             Vector2 finalVelocity = WorldVelocity + _knockbackVelocity;
             Vector2 movement = finalVelocity * dt;
+
             Vector3 nextPos = WorldPosition + new Vector3(movement.X, movement.Y, 0);
             if (!IsCollidingAt(nextPos))
             {
@@ -239,7 +262,6 @@ namespace IsometricGame.Classes
             {
                 Vector2 drawPosition = new Vector2(MathF.Round(ScreenPosition.X), MathF.Round(ScreenPosition.Y));
                 float baseDepth = IsoMath.GetDepth(WorldPosition);
-
                 spriteBatch.Draw(Texture, drawPosition, null, tint, 0f, Origin, 1.0f, SpriteEffects.None, baseDepth);
             }
             _explosion.Draw(spriteBatch);

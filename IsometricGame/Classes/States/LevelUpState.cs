@@ -18,7 +18,7 @@ namespace IsometricGame.States
         public override void Start()
         {
             base.Start();
-            _options = GameEngine.CurrentUpgradeOptions ?? UpgradeManager.GetRandomOptions(3);
+            _options = GameEngine.CurrentUpgradeOptions ?? UpgradeManager.GetSmartOptions(GameEngine.Player, 3);
             _pixel = GameEngine.Assets.Images["pixel"];
             _titleFont = GameEngine.Assets.Fonts["captain_42"];
             _descFont = GameEngine.Assets.Fonts["captain_32"];

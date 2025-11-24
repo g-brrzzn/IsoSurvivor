@@ -9,7 +9,8 @@ namespace IsometricGame.Classes
         public int Value { get; private set; }
         private float _magnetSpeed = 0f;
         private const float _acceleration = 15f;
-        private const float _maxSpeed = 600f;        private bool _isMagnetized = false;
+        private const float _maxSpeed = 600f;
+        private bool _isMagnetized = false;
         private float _floatTimer = 0f;
 
         public ExperienceGem(Vector3 worldPos, int value) : base(null, worldPos)
@@ -17,7 +18,9 @@ namespace IsometricGame.Classes
             Value = value;
 
             string textureName = "gem_1";
-            if (value >= 20)
+            if (value >= 100)            {
+                textureName = "gem_50";            }
+            else if (value >= 20)
             {
                 textureName = "gem_50";
             }
@@ -32,15 +35,17 @@ namespace IsometricGame.Classes
                 UpdateTexture(GameEngine.Assets.Images["gem_1"]);
             else
                 UpdateTexture(GameEngine.Assets.Images["bullet_player"]);
-
+            if (Texture != null)
+                Origin = new Vector2(Texture.Width / 2f, Texture.Height);
             BaseYOffsetWorld = 10f;
 
             _floatTimer = (float)GameEngine.Random.NextDouble() * 10f;
         }
+
         public void ForceMagnetize()
         {
             _isMagnetized = true;
-            _magnetSpeed = 100f;        }
+            _magnetSpeed = 150f;        }
 
         public override void Update(GameTime gameTime, float dt)
         {
@@ -51,7 +56,7 @@ namespace IsometricGame.Classes
             _floatTimer += dt * 5f;
             if (!_isMagnetized)
             {
-                BaseYOffsetWorld = (float)Math.Sin(_floatTimer) * 3f + 5f;
+                BaseYOffsetWorld = (float)Math.Sin(_floatTimer) * 5f + 10f;
             }
 
             float distToPlayerSq = Vector2.DistanceSquared(
@@ -74,10 +79,11 @@ namespace IsometricGame.Classes
                 if (direction != Vector2.Zero) direction.Normalize();
 
                 WorldPosition += new Vector3(direction.X, direction.Y, 0) * _magnetSpeed * dt * 0.05f;
-                BaseYOffsetWorld = MathHelper.Lerp(BaseYOffsetWorld, 15f, dt * 10);
+                BaseYOffsetWorld = MathHelper.Lerp(BaseYOffsetWorld, 20f, dt * 10);
+
                 if (distToPlayerSq < 0.5f * 0.5f)
                 {
-                    bool leveledUp = GameEngine.Player.AddExperience(Value);
+                    GameEngine.Player.AddExperience(Value);
 
                     if (Value >= 10)
                         GameEngine.Assets.Sounds["menu_select"].Play(0.6f, 0.8f, 0f);

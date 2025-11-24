@@ -8,32 +8,34 @@ namespace IsometricGame.Classes.Items
     {
         HealthPotion,
         Magnet,
-        Bomb    }
+        Bomb
+    }
 
     public class ItemDrop : Sprite
     {
         public ItemType Type { get; private set; }
         private float _floatTimer;
-        private float _baseZ;
 
         public ItemDrop(Vector3 worldPos, ItemType type) : base(null, worldPos)
         {
             Type = type;
-            _baseZ = worldPos.Z;
             _floatTimer = (float)GameEngine.Random.NextDouble() * 10f;
+
             switch (type)
             {
                 case ItemType.HealthPotion:
                     if (GameEngine.Assets.Images.ContainsKey("item_potion"))
                         UpdateTexture(GameEngine.Assets.Images["item_potion"]);
                     else
-                        UpdateTexture(GameEngine.Assets.Images["gem_50"]);                    break;
+                        UpdateTexture(GameEngine.Assets.Images["gem_50"]);
+                    break;
 
                 case ItemType.Magnet:
                     if (GameEngine.Assets.Images.ContainsKey("item_magnet"))
                         UpdateTexture(GameEngine.Assets.Images["item_magnet"]);
                     else
-                        UpdateTexture(GameEngine.Assets.Images["gem_1"]);                    break;
+                        UpdateTexture(GameEngine.Assets.Images["gem_1"]);
+                    break;
             }
             if (Texture != null)
                 Origin = new Vector2(Texture.Width / 2f, Texture.Height);
@@ -42,7 +44,8 @@ namespace IsometricGame.Classes.Items
         public override void Update(GameTime gameTime, float dt)
         {
             _floatTimer += dt * 3f;
-            float floatOffset = (float)Math.Sin(_floatTimer) * 5f + 5f;            BaseYOffsetWorld = 15f + floatOffset;
+            float floatOffset = (float)Math.Sin(_floatTimer) * 5f + 20f;
+            BaseYOffsetWorld = floatOffset;
 
             UpdateScreenPosition();
         }
@@ -55,9 +58,10 @@ namespace IsometricGame.Classes.Items
                     player.Heal(1);
                     if (GameEngine.Assets.Sounds.ContainsKey("menu_select"))
                         GameEngine.Assets.Sounds["menu_select"].Play(1.0f, 0.5f, 0f);
+
                     GameEngine.FloatingTexts.Add(new IsometricGame.Classes.UI.FloatingText(
                         "+1 HP",
-                        WorldPosition + new Vector3(0, 0, 10),
+                        WorldPosition + new Vector3(0, 0, 15),
                         Color.LimeGreen,
                         1.0f
                     ));
@@ -70,14 +74,15 @@ namespace IsometricGame.Classes.Items
 
                     GameEngine.FloatingTexts.Add(new IsometricGame.Classes.UI.FloatingText(
                         "MAGNET!",
-                        WorldPosition + new Vector3(0, 0, 10),
+                        WorldPosition + new Vector3(0, 0, 15),
                         Color.Cyan,
                         1.5f
                     ));
                     break;
             }
 
-            Kill();        }
+            Kill();
+        }
 
         private void ActivateMagnet()
         {

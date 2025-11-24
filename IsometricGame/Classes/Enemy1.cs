@@ -16,7 +16,8 @@ namespace IsometricGame.Classes
                 "enemy1_idle_east"
             })
         {
-            Life = 2;            Weight = 1;
+            Life = 3;            
+            Weight = 1;
             Speed = 3.0f;
         }
     }
