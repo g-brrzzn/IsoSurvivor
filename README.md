@@ -48,7 +48,7 @@ A 2D Action-Survival game (Survivor-like) built with **C# and MonoGame** featuri
 
 2. **Clone and Open**
    ```bash
-   git clone [https://github.com/SeuUsuario/IsometricGame-MonoGame.git](https://github.com/SeuUsuario/IsometricGame-MonoGame.git)
+   git clone https://github.com/g-brrzzn/IsometricGame-MonoGame.git
    Open the .sln file in Visual Studio.
    Build
    Press F5 to build and run the project.
