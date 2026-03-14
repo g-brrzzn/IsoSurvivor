@@ -1,4 +1,4 @@
-name: Build + Release IsometricGame
+name: Build + Release IsometricSurvivor
 
 on:
   push:
@@ -53,12 +53,17 @@ jobs:
           --self-contained false `
           -o publish/windows
 
-      - name: Package builds
+      - name: Package Linux build
+        if: runner.os == 'Linux'
         run: |
           cd publish
-          if [ -d linux ]; then zip -r IsometricGame-linux.zip linux; fi
-          if [ -d windows ]; then zip -r IsometricGame-windows.zip windows; fi
-        shell: bash
+          zip -r IsometricSurvivor-${{ github.ref_name }}-linux.zip linux
+
+      - name: Package Windows build
+        if: runner.os == 'Windows'
+        run: |
+          Compress-Archive -Path publish/windows/* -DestinationPath publish/IsometricSurvivor-${{ github.ref_name }}-windows.zip
+        shell: pwsh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
